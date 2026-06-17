@@ -1,0 +1,81 @@
+# ------------------------------------------------------
+# THIS FILE WAS AUTOMATICALLY GENERATED (DO NOT MODIFY)
+# ------------------------------------------------------
+
+type BookingType {
+  bookingDate: DateTime!
+  bookingNumber: String!
+  customerName: String
+  id: ID!
+  status: String!
+  totalAmount: Float!
+}
+
+type CrmDashboardStats {
+  conversionRate: Int!
+  followUpsToday: Int!
+  siteVisitsToday: Int!
+  totalLeads: Int!
+}
+
+"""
+A date-time string at UTC, such as 2019-12-03T09:54:33Z, compliant with the date-time format.
+"""
+scalar DateTime
+
+enum LeadSource {
+  FACEBOOK
+  GOOGLE
+  OTHER
+  PORTAL
+  REFERRAL
+  WALKIN
+  WEBSITE
+  WHATSAPP
+}
+
+enum LeadStatus {
+  AGREEMENT
+  BOOKING
+  CONTACTED
+  INTERESTED
+  LOST
+  NEGOTIATION
+  NEW
+  POSSESSION
+  REGISTRATION
+  SITE_VISIT
+}
+
+type LeadType {
+  aiScore: Int
+  createdAt: DateTime!
+  email: String
+  firstName: String!
+  id: ID!
+  lastName: String
+  phone: String!
+  priority: Priority!
+  score: Int!
+  source: LeadSource!
+  status: LeadStatus!
+}
+
+type PaginatedLeads {
+  items: [LeadType!]!
+  total: Int!
+}
+
+enum Priority {
+  HIGH
+  LOW
+  MEDIUM
+  URGENT
+}
+
+type Query {
+  bookings: [BookingType!]!
+  crmDashboard: CrmDashboardStats!
+  lead(id: String!): LeadType
+  leads(limit: Int, page: Int, status: String): PaginatedLeads!
+}

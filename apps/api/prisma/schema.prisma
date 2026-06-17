@@ -1,0 +1,1456 @@
+// prisma/schema.prisma
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ============ MULTI-TENANCY ============
+
+model Tenant {
+  id            String         @id @default(cuid())
+  name          String
+  slug          String         @unique
+  domain        String?        @unique
+  logo          String?
+  plan          PlanType       @default(STARTER)
+  status        Status         @default(ACTIVE)
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+
+  companies     Company[]
+  subscriptions Subscription[]
+  users         User[]
+  roles         Role[]
+}
+
+model Company {
+  id        String   @id @default(cuid())
+  tenantId  String
+  name      String
+  gstin     String?
+  pan       String?
+  rera      String?
+  logo      String?
+  address   Json?
+  status    Status   @default(ACTIVE)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tenant    Tenant     @relation(fields: [tenantId], references: [id])
+  projects  Project[]
+  branches  Branch[]
+  employees Employee[]
+
+  @@index([tenantId])
+  @@index([status])
+  @@index([createdAt])
+}
+
+model Project {
+  id                   String                @id @default(cuid())
+  companyId            String
+  name                 String
+  code                 String                @unique
+  type                 ProjectType
+  status               ProjectStatus         @default(PLANNING)
+  location             Json?
+  reraNumber           String?
+  startDate            DateTime?
+  expectedEnd          DateTime?
+  totalUnits           Int                   @default(0)
+  totalArea            Decimal?
+  createdAt            DateTime              @default(now())
+  updatedAt            DateTime              @updatedAt
+
+  company              Company               @relation(fields: [companyId], references: [id])
+  towers               Tower[]
+  buildings            Building[]
+  units                Unit[]
+  milestones           Milestone[]
+  leads                Lead[]
+  boqs                 BOQ[]
+  paymentPlans         PaymentPlan[]
+  siteVisits           SiteVisit[]
+  dailyProgressReports DailyProgressReport[]
+  qualityChecks        QualityCheck[]
+  vendorContracts      VendorContract[]
+  purchaseRequisitions PurchaseRequisition[]
+  purchaseOrders       PurchaseOrder[]
+  inventoryItems       InventoryItem[]
+  budgets              Budget[]
+
+  @@index([status])
+  @@index([createdAt])
+}
+
+model Branch {
+  id        String  @id @default(cuid())
+  companyId String
+  name      String
+  address   Json?
+  phone     String?
+  email     String?
+  status    Status  @default(ACTIVE)
+
+  company   Company    @relation(fields: [companyId], references: [id])
+  employees Employee[]
+}
+
+// ============ USER & AUTH ============
+
+model User {
+  id           String    @id @default(cuid())
+  tenantId     String
+  employeeId   String?   @unique
+  email        String    @unique
+  phone        String?
+  passwordHash String
+  firstName    String
+  lastName     String
+  avatar       String?
+  status       Status    @default(ACTIVE)
+  lastLoginAt  DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  tenant        Tenant         @relation(fields: [tenantId], references: [id])
+  employee      Employee?      @relation(fields: [employeeId], references: [id])
+  roles         UserRole[]
+  sessions      Session[]
+  notifications Notification[]
+  assignedLeads Lead[]         @relation("AssignedTo")
+  activities    Activity[]
+  followUps     FollowUp[]
+  callLogs      CallLog[]
+  meetings      Meeting[]
+
+  @@index([tenantId])
+  @@index([status])
+  @@index([createdAt])
+}
+
+model Role {
+  id          String  @id @default(cuid())
+  tenantId    String
+  name        String
+  description String?
+  isSystem    Boolean @default(false)
+
+  tenant      Tenant           @relation(fields: [tenantId], references: [id])
+  users       UserRole[]
+  permissions RolePermission[]
+
+  @@index([tenantId])
+}
+
+model Permission {
+  id       String @id @default(cuid())
+  module   String
+  action   String
+  resource String
+
+  roles RolePermission[]
+}
+
+model UserRole {
+  userId String
+  roleId String
+
+  user User @relation(fields: [userId], references: [id])
+  role Role @relation(fields: [roleId], references: [id])
+
+  @@id([userId, roleId])
+}
+
+model RolePermission {
+  roleId       String
+  permissionId String
+
+  role       Role       @relation(fields: [roleId], references: [id])
+  permission Permission @relation(fields: [permissionId], references: [id])
+
+  @@id([roleId, permissionId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  userId       String
+  token        String   @unique
+  refreshToken String   @unique
+  expiresAt    DateTime
+  ipAddress    String?
+  userAgent    String?
+  createdAt    DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id])
+}
+
+// ============ EMPLOYEE / HRMS ============
+
+model Employee {
+  id            String         @id @default(cuid())
+  companyId     String
+  branchId      String?
+  employeeCode  String         @unique
+  firstName     String
+  lastName      String
+  email         String         @unique
+  phone         String
+  designation   String?
+  department    String?
+  dateOfJoining DateTime?
+  dateOfBirth   DateTime?
+  gender        Gender?
+  address       Json?
+  documents     Json?
+  bankDetails   Json?
+  salary        Decimal?
+  status        EmployeeStatus @default(ACTIVE)
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+
+  company    Company      @relation(fields: [companyId], references: [id])
+  branch     Branch?      @relation(fields: [branchId], references: [id])
+  user       User?
+  attendance Attendance[]
+  leaves     Leave[]
+  payslips   Payslip[]
+  expenses   Expense[]
+
+  @@index([status])
+  @@index([createdAt])
+}
+
+model Attendance {
+  id         String           @id @default(cuid())
+  employeeId String
+  date       DateTime         @db.Date
+  checkIn    DateTime?
+  checkOut   DateTime?
+  status     AttendanceStatus
+  notes      String?
+
+  employee Employee @relation(fields: [employeeId], references: [id])
+}
+
+model Leave {
+  id           String         @id @default(cuid())
+  employeeId   String
+  type         LeaveType
+  startDate    DateTime       @db.Date
+  endDate      DateTime       @db.Date
+  days         Int
+  reason       String?
+  status       ApprovalStatus @default(PENDING)
+  approvedById String?
+  createdAt    DateTime       @default(now())
+
+  employee Employee @relation(fields: [employeeId], references: [id])
+}
+
+model Payslip {
+  id          String        @id @default(cuid())
+  employeeId  String
+  month       Int
+  year        Int
+  basicSalary Decimal
+  allowances  Json?
+  deductions  Json?
+  grossSalary Decimal
+  netSalary   Decimal
+  status      PayslipStatus @default(GENERATED)
+  paidAt      DateTime?
+
+  employee Employee @relation(fields: [employeeId], references: [id])
+}
+
+model Expense {
+  id           String          @id @default(cuid())
+  employeeId   String
+  category     ExpenseCategory
+  amount       Decimal
+  description  String?
+  receipt      String?
+  date         DateTime        @db.Date
+  status       ApprovalStatus  @default(PENDING)
+  approvedById String?
+  createdAt    DateTime        @default(now())
+
+  employee Employee @relation(fields: [employeeId], references: [id])
+}
+
+// ============ CRM ============
+
+model Lead {
+  id             String  @id @default(cuid())
+  tenantId       String
+  projectId      String?
+  assignedToId   String?
+  source         LeadSource
+  status         LeadStatus @default(NEW)
+  priority       Priority   @default(MEDIUM)
+  score          Int        @default(0)
+  firstName      String
+  lastName       String?
+  email          String?
+  phone          String
+  alternatePhone String?
+  budget         Json?
+  requirements   Json?
+  location       String?
+  utmSource      String?
+  utmMedium      String?
+  utmCampaign    String?
+  referredById   String?
+  aiScore        Int?
+  aiNotes        String?
+  aiNextAction   String?
+  isArchived     Boolean    @default(false)
+  createdAt      DateTime   @default(now())
+  updatedAt      DateTime   @updatedAt
+
+  project      Project?        @relation(fields: [projectId], references: [id])
+  assignedTo   User?           @relation("AssignedTo", fields: [assignedToId], references: [id])
+  referredBy   ChannelPartner? @relation("ReferredBy", fields: [referredById], references: [id])
+  followUps    FollowUp[]
+  callLogs     CallLog[]
+  siteVisits   SiteVisit[]
+  meetings     Meeting[]
+  activities   Activity[]
+  booking      Booking?
+
+  @@index([tenantId])
+  @@index([status])
+  @@index([createdAt])
+  @@index([assignedToId])
+}
+
+model FollowUp {
+  id           String         @id @default(cuid())
+  leadId       String
+  userId       String
+  type         FollowUpType
+  scheduledAt  DateTime
+  completedAt  DateTime?
+  notes        String?
+  outcome      String?
+  nextFollowUp DateTime?
+  status       FollowUpStatus @default(SCHEDULED)
+  createdAt    DateTime       @default(now())
+
+  lead Lead @relation(fields: [leadId], references: [id])
+  user User @relation(fields: [userId], references: [id])
+}
+
+model CallLog {
+  id        String        @id @default(cuid())
+  leadId    String
+  userId    String
+  direction CallDirection
+  duration  Int?
+  status    CallStatus
+  notes     String?
+  recording String?
+  calledAt  DateTime      @default(now())
+
+  lead Lead @relation(fields: [leadId], references: [id])
+  user User @relation(fields: [userId], references: [id])
+}
+
+model SiteVisit {
+  id          String            @id @default(cuid())
+  leadId      String
+  projectId   String
+  scheduledAt DateTime
+  completedAt DateTime?
+  attendedBy  String?
+  feedback    String?
+  outcome     SiteVisitOutcome?
+  status      VisitStatus       @default(SCHEDULED)
+  createdAt   DateTime          @default(now())
+
+  lead    Lead    @relation(fields: [leadId], references: [id])
+  project Project @relation(fields: [projectId], references: [id])
+}
+
+model Meeting {
+  id          String        @id @default(cuid())
+  leadId      String
+  userId      String
+  title       String
+  scheduledAt DateTime
+  duration    Int?
+  location    String?
+  meetingUrl  String?
+  notes       String?
+  outcome     String?
+  status      MeetingStatus @default(SCHEDULED)
+  createdAt   DateTime      @default(now())
+
+  lead Lead @relation(fields: [leadId], references: [id])
+  user User @relation(fields: [userId], references: [id])
+}
+
+// ============ INVENTORY & SALES ============
+
+model Tower {
+  id            String @id @default(cuid())
+  projectId     String
+  name          String
+  floors        Int
+  unitsPerFloor Int?
+  status        Status @default(ACTIVE)
+
+  project Project @relation(fields: [projectId], references: [id])
+  units   Unit[]
+}
+
+model Building {
+  id        String @id @default(cuid())
+  projectId String
+  name      String
+  floors    Int
+  status    Status @default(ACTIVE)
+
+  project Project @relation(fields: [projectId], references: [id])
+  units   Unit[]
+}
+
+model Unit {
+  id          String     @id @default(cuid())
+  projectId   String
+  towerId     String?
+  buildingId  String?
+  unitNumber  String
+  type        UnitType
+  floor       Int?
+  bedrooms    Int?
+  bathrooms   Int?
+  area        Decimal
+  carpetArea  Decimal?
+  builtupArea Decimal?
+  superArea   Decimal?
+  facing      String?
+  basePrice   Decimal
+  totalPrice  Decimal
+  premiums    Json?
+  amenities   String[]
+  status      UnitStatus @default(AVAILABLE)
+  floor_plan  String?
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+
+  project  Project   @relation(fields: [projectId], references: [id])
+  tower    Tower?    @relation(fields: [towerId], references: [id])
+  building Building? @relation(fields: [buildingId], references: [id])
+  booking  Booking?
+}
+
+model Booking {
+  id              String        @id @default(cuid())
+  bookingNumber   String        @unique
+  leadId          String        @unique
+  unitId          String        @unique
+  customerId      String
+  salesPersonId   String
+  unitPrice       Decimal
+  premiumAmount   Decimal       @default(0)
+  discountAmount  Decimal       @default(0)
+  totalAmount     Decimal
+  bookingAmount   Decimal
+  bookingDate     DateTime
+  paymentPlanId   String?
+  status          BookingStatus @default(BOOKED)
+  cancelledAt     DateTime?
+  cancelReason    String?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  lead        Lead         @relation(fields: [leadId], references: [id])
+  unit        Unit         @relation(fields: [unitId], references: [id])
+  customer    Customer     @relation(fields: [customerId], references: [id])
+  paymentPlan PaymentPlan? @relation(fields: [paymentPlanId], references: [id])
+  payments    Payment[]
+  agreement   Agreement?
+  receipts    Receipt[]
+  commissions Commission[]
+
+  @@index([status])
+  @@index([createdAt])
+}
+
+model PaymentPlan {
+  id          String  @id @default(cuid())
+  projectId   String
+  name        String
+  description String?
+  installments Json
+  isActive    Boolean @default(true)
+
+  project  Project   @relation(fields: [projectId], references: [id])
+  bookings Booking[]
+}
+
+model Payment {
+  id              String        @id @default(cuid())
+  bookingId       String
+  installmentName String
+  dueDate         DateTime
+  amount          Decimal
+  paidAmount      Decimal       @default(0)
+  paidDate        DateTime?
+  paymentMode     PaymentMode?
+  reference       String?
+  status          PaymentStatus @default(PENDING)
+  receiptId       String?
+  createdAt       DateTime      @default(now())
+
+  booking Booking  @relation(fields: [bookingId], references: [id])
+  receipt Receipt? @relation(fields: [receiptId], references: [id])
+}
+
+model Receipt {
+  id            String      @id @default(cuid())
+  receiptNumber String      @unique
+  bookingId     String
+  amount        Decimal
+  paymentMode   PaymentMode
+  reference     String?
+  date          DateTime
+  pdfUrl        String?
+  createdAt     DateTime    @default(now())
+
+  booking  Booking   @relation(fields: [bookingId], references: [id])
+  payments Payment[]
+}
+
+model Agreement {
+  id               String          @id @default(cuid())
+  agreementNumber  String          @unique
+  bookingId        String          @unique
+  type             AgreementType
+  executedDate     DateTime?
+  registrationDate DateTime?
+  stampDuty        Decimal?
+  registrationFee  Decimal?
+  documentUrl      String?
+  status           AgreementStatus @default(DRAFT)
+  createdAt        DateTime        @default(now())
+
+  booking Booking @relation(fields: [bookingId], references: [id])
+}
+
+// ============ CUSTOMER ============
+
+model Customer {
+  id             String   @id @default(cuid())
+  firstName      String
+  lastName       String
+  email          String?
+  phone          String   @unique
+  alternatePhone String?
+  pan            String?
+  aadhaar        String?
+  address        Json?
+  documents      Json?
+  portalAccess   Boolean  @default(false)
+  portalPassword String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  bookings   Booking[]
+  complaints Complaint[]
+  tickets    SupportTicket[]
+}
+
+model Complaint {
+  id          String          @id @default(cuid())
+  customerId  String
+  bookingId   String?
+  category    String
+  description String
+  priority    Priority        @default(MEDIUM)
+  status      ComplaintStatus @default(OPEN)
+  assignedTo  String?
+  resolvedAt  DateTime?
+  resolution  String?
+  createdAt   DateTime        @default(now())
+
+  customer Customer @relation(fields: [customerId], references: [id])
+
+  @@index([status])
+  @@index([createdAt])
+}
+
+model SupportTicket {
+  id           String       @id @default(cuid())
+  ticketNumber String       @unique
+  customerId   String
+  subject      String
+  description  String
+  category     String
+  priority     Priority     @default(MEDIUM)
+  status       TicketStatus @default(OPEN)
+  assignedTo   String?
+  resolvedAt   DateTime?
+  createdAt    DateTime     @default(now())
+
+  customer Customer @relation(fields: [customerId], references: [id])
+
+  @@index([status])
+  @@index([createdAt])
+}
+
+// ============ CONSTRUCTION ============
+
+model Milestone {
+  id            String          @id @default(cuid())
+  projectId     String
+  name          String
+  description   String?
+  plannedStart  DateTime
+  plannedEnd    DateTime
+  actualStart   DateTime?
+  actualEnd     DateTime?
+  completionPct Int             @default(0)
+  dependencies  String[]
+  status        MilestoneStatus @default(PENDING)
+  createdAt     DateTime        @default(now())
+
+  project       Project               @relation(fields: [projectId], references: [id])
+  dprs          DailyProgressReport[]
+  qualityChecks QualityCheck[]
+}
+
+model DailyProgressReport {
+  id          String    @id @default(cuid())
+  projectId   String
+  milestoneId String?
+  reportDate  DateTime  @db.Date
+  engineerId  String
+  activities  Json
+  labour      Json?
+  materials   Json?
+  equipment   Json?
+  weather     String?
+  issues      String?
+  photos      String[]
+  status      DPRStatus @default(DRAFT)
+  approvedBy  String?
+  approvedAt  DateTime?
+  createdAt   DateTime  @default(now())
+
+  project   Project    @relation(fields: [projectId], references: [id])
+  milestone Milestone? @relation(fields: [milestoneId], references: [id])
+}
+
+model QualityCheck {
+  id            String    @id @default(cuid())
+  projectId     String
+  milestoneId   String?
+  checkDate     DateTime  @db.Date
+  inspector     String
+  checkType     String
+  checklist     Json
+  overallStatus String
+  notes         String?
+  photos        String[]
+  createdAt     DateTime  @default(now())
+
+  project   Project    @relation(fields: [projectId], references: [id])
+  milestone Milestone? @relation(fields: [milestoneId], references: [id])
+}
+
+// ============ VENDOR & PROCUREMENT ============
+
+model Vendor {
+  id          String     @id @default(cuid())
+  tenantId    String
+  name        String
+  type        VendorType
+  gstin       String?
+  pan         String?
+  email       String?
+  phone       String
+  address     Json?
+  documents   Json?
+  bankDetails Json?
+  rating      Decimal?
+  status      Status     @default(ACTIVE)
+  createdAt   DateTime   @default(now())
+
+  contracts      VendorContract[]
+  purchaseOrders PurchaseOrder[]
+  vendorPayments VendorPayment[]
+
+  @@index([tenantId])
+  @@index([status])
+  @@index([createdAt])
+}
+
+model VendorContract {
+  id          String         @id @default(cuid())
+  vendorId    String
+  projectId   String?
+  title       String
+  scope       String?
+  value       Decimal
+  startDate   DateTime
+  endDate     DateTime?
+  documentUrl String?
+  status      ContractStatus @default(ACTIVE)
+  createdAt   DateTime       @default(now())
+
+  vendor  Vendor   @relation(fields: [vendorId], references: [id])
+  project Project? @relation(fields: [projectId], references: [id])
+}
+
+model PurchaseRequisition {
+  id            String         @id @default(cuid())
+  prNumber      String         @unique
+  projectId     String
+  requestedBy   String
+  department    String?
+  items         Json
+  totalEstimate Decimal?
+  urgency       Priority       @default(MEDIUM)
+  requiredBy    DateTime?
+  notes         String?
+  status        ApprovalStatus @default(PENDING)
+  approvedBy    String?
+  approvedAt    DateTime?
+  createdAt     DateTime       @default(now())
+
+  project        Project         @relation(fields: [projectId], references: [id])
+  purchaseOrders PurchaseOrder[]
+
+  @@index([status])
+  @@index([createdAt])
+}
+
+model PurchaseOrder {
+  id              String      @id @default(cuid())
+  poNumber        String      @unique
+  vendorId        String
+  requisitionId   String?
+  projectId       String
+  items           Json
+  subtotal        Decimal
+  gstAmount       Decimal
+  totalAmount     Decimal
+  deliveryDate    DateTime?
+  deliveryAddress String?
+  terms           String?
+  status          POStatus    @default(DRAFT)
+  approvedBy      String?
+  approvedAt      DateTime?
+  createdAt       DateTime    @default(now())
+
+  vendor      Vendor               @relation(fields: [vendorId], references: [id])
+  requisition PurchaseRequisition? @relation(fields: [requisitionId], references: [id])
+  project     Project              @relation(fields: [projectId], references: [id])
+  grns        GoodsReceiptNote[]
+
+  @@index([status])
+  @@index([createdAt])
+}
+
+model GoodsReceiptNote {
+  id         String    @id @default(cuid())
+  grnNumber  String    @unique
+  poId       String
+  receivedBy String
+  receivedAt DateTime
+  items      Json
+  notes      String?
+  status     GRNStatus @default(PENDING)
+
+  po PurchaseOrder @relation(fields: [poId], references: [id])
+}
+
+model InventoryItem {
+  id           String   @id @default(cuid())
+  projectId    String
+  category     String
+  name         String
+  unit         String
+  currentStock Decimal  @default(0)
+  minimumStock Decimal  @default(0)
+  reorderLevel Decimal?
+  location     String?
+  lastUpdated  DateTime @default(now())
+
+  project Project @relation(fields: [projectId], references: [id])
+}
+
+// ============ FINANCE ============
+
+model Budget {
+  id        String   @id @default(cuid())
+  projectId String
+  year      Int
+  month     Int?
+  category  String
+  planned   Decimal
+  actual    Decimal  @default(0)
+  variance  Decimal  @default(0)
+  notes     String?
+  createdAt DateTime @default(now())
+
+  project Project @relation(fields: [projectId], references: [id])
+}
+
+model LedgerEntry {
+  id          String    @id @default(cuid())
+  tenantId    String
+  projectId   String?
+  accountCode String
+  accountName String
+  entryType   EntryType
+  amount      Decimal
+  description String
+  reference   String?
+  entryDate   DateTime  @db.Date
+  createdBy   String
+  createdAt   DateTime  @default(now())
+
+  @@index([tenantId])
+  @@index([createdAt])
+}
+
+model GSTInvoice {
+  id            String        @id @default(cuid())
+  invoiceNumber String        @unique
+  tenantId      String
+  vendorId      String?
+  customerId    String?
+  type          InvoiceType
+  items         Json
+  subtotal      Decimal
+  cgst          Decimal       @default(0)
+  sgst          Decimal       @default(0)
+  igst          Decimal       @default(0)
+  totalGST      Decimal
+  totalAmount   Decimal
+  invoiceDate   DateTime
+  dueDate       DateTime?
+  status        InvoiceStatus @default(DRAFT)
+  createdAt     DateTime      @default(now())
+
+  @@index([tenantId])
+  @@index([status])
+  @@index([createdAt])
+}
+
+model VendorPayment {
+  id          String      @id @default(cuid())
+  vendorId    String
+  poId        String?
+  amount      Decimal
+  paymentMode PaymentMode
+  reference   String?
+  paidDate    DateTime
+  notes       String?
+  createdBy   String
+  createdAt   DateTime    @default(now())
+
+  vendor Vendor @relation(fields: [vendorId], references: [id])
+}
+
+// ============ DOCUMENT MANAGEMENT ============
+
+model Document {
+  id             String           @id @default(cuid())
+  tenantId       String
+  projectId      String?
+  category       DocumentCategory
+  name           String
+  description    String?
+  fileUrl        String
+  fileSize       Int?
+  mimeType       String?
+  version        Int              @default(1)
+  tags           String[]
+  ocrText        String?
+  isConfidential Boolean          @default(false)
+  uploadedBy     String
+  expiresAt      DateTime?
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+
+  versions DocumentVersion[]
+
+  @@index([tenantId])
+  @@index([createdAt])
+}
+
+model DocumentVersion {
+  id         String   @id @default(cuid())
+  documentId String
+  version    Int
+  fileUrl    String
+  changes    String?
+  uploadedBy String
+  createdAt  DateTime @default(now())
+
+  document Document @relation(fields: [documentId], references: [id])
+}
+
+// ============ MARKETING ============
+
+model Campaign {
+  id             String         @id @default(cuid())
+  tenantId       String
+  name           String
+  type           CampaignType
+  projectId      String?
+  budget         Decimal?
+  spent          Decimal        @default(0)
+  startDate      DateTime?
+  endDate        DateTime?
+  targetAudience Json?
+  content        Json?
+  metrics        Json?
+  status         CampaignStatus @default(DRAFT)
+  externalId     String?
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+
+  @@index([tenantId])
+  @@index([status])
+  @@index([createdAt])
+}
+
+// ============ CHANNEL PARTNERS ============
+
+model ChannelPartner {
+  id             String      @id @default(cuid())
+  tenantId       String
+  code           String      @unique
+  name           String
+  type           PartnerType
+  email          String?
+  phone          String
+  reraNumber     String?
+  panNumber      String?
+  address        Json?
+  documents      Json?
+  commissionRate Decimal?
+  status         Status      @default(ACTIVE)
+  createdAt      DateTime    @default(now())
+
+  referrals   Lead[]       @relation("ReferredBy")
+  commissions Commission[]
+
+  @@index([tenantId])
+  @@index([status])
+  @@index([createdAt])
+}
+
+model Commission {
+  id         String           @id @default(cuid())
+  partnerId  String
+  bookingId  String
+  amount     Decimal
+  percentage Decimal
+  status     CommissionStatus @default(PENDING)
+  paidAt     DateTime?
+  createdAt  DateTime         @default(now())
+
+  partner ChannelPartner @relation(fields: [partnerId], references: [id])
+  booking Booking        @relation(fields: [bookingId], references: [id])
+}
+
+// ============ LEGAL ============
+
+model LegalCase {
+  id          String      @id @default(cuid())
+  tenantId    String
+  projectId   String?
+  type        LegalType
+  title       String
+  description String?
+  parties     Json?
+  filedDate   DateTime?
+  hearingDate DateTime?
+  status      LegalStatus @default(ACTIVE)
+  assignedTo  String?
+  documents   String[]
+  notes       String?
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  @@index([tenantId])
+  @@index([status])
+  @@index([createdAt])
+}
+
+// ============ ASSETS ============
+
+model Asset {
+  id              String      @id @default(cuid())
+  tenantId        String
+  name            String
+  type            AssetType
+  serialNumber    String?
+  purchaseDate    DateTime?
+  purchaseValue   Decimal?
+  currentValue    Decimal?
+  location        String?
+  assignedTo      String?
+  status          AssetStatus @default(ACTIVE)
+  nextServiceDate DateTime?
+  createdAt       DateTime    @default(now())
+
+  maintenanceLogs MaintenanceLog[]
+
+  @@index([tenantId])
+  @@index([status])
+  @@index([createdAt])
+}
+
+model MaintenanceLog {
+  id          String   @id @default(cuid())
+  assetId     String
+  type        String
+  date        DateTime
+  description String?
+  cost        Decimal?
+  vendor      String?
+  nextDue     DateTime?
+  createdAt   DateTime @default(now())
+
+  asset Asset @relation(fields: [assetId], references: [id])
+}
+
+// ============ ENGINEERING ============
+
+model BOQ {
+  id          String   @id @default(cuid())
+  projectId   String
+  name        String
+  version     Int      @default(1)
+  items       Json
+  totalAmount Decimal
+  status      Status   @default(ACTIVE)
+  createdAt   DateTime @default(now())
+
+  project Project @relation(fields: [projectId], references: [id])
+}
+
+// ============ NOTIFICATIONS & ACTIVITY ============
+
+model Notification {
+  id        String           @id @default(cuid())
+  userId    String
+  type      NotificationType
+  title     String
+  body      String
+  data      Json?
+  isRead    Boolean          @default(false)
+  createdAt DateTime         @default(now())
+
+  user User @relation(fields: [userId], references: [id])
+}
+
+model Activity {
+  id          String   @id @default(cuid())
+  userId      String
+  leadId      String?
+  module      String
+  action      String
+  description String
+  metadata    Json?
+  createdAt   DateTime @default(now())
+
+  user User  @relation(fields: [userId], references: [id])
+  lead Lead? @relation(fields: [leadId], references: [id])
+}
+
+model Subscription {
+  id           String    @id @default(cuid())
+  tenantId     String
+  plan         PlanType
+  startDate    DateTime
+  endDate      DateTime?
+  status       SubStatus @default(ACTIVE)
+  amount       Decimal
+  billingCycle String
+  createdAt    DateTime  @default(now())
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+}
+
+// ============ ENUMS ============
+
+enum Status {
+  ACTIVE
+  INACTIVE
+  ARCHIVED
+}
+
+enum Gender {
+  MALE
+  FEMALE
+  OTHER
+}
+
+enum Priority {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+}
+
+enum ApprovalStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum PlanType {
+  STARTER
+  GROWTH
+  ENTERPRISE
+}
+
+enum SubStatus {
+  ACTIVE
+  CANCELLED
+  EXPIRED
+  TRIAL
+}
+
+enum ProjectType {
+  RESIDENTIAL
+  COMMERCIAL
+  MIXED
+}
+
+enum ProjectStatus {
+  PLANNING
+  UNDER_CONSTRUCTION
+  COMPLETED
+  ON_HOLD
+}
+
+enum UnitType {
+  FLAT
+  VILLA
+  PLOT
+  COMMERCIAL
+  SHOP
+  PENTHOUSE
+}
+
+enum UnitStatus {
+  AVAILABLE
+  RESERVED
+  BOOKED
+  SOLD
+  BLOCKED
+  UNDER_CONSTRUCTION
+}
+
+enum LeadSource {
+  WEBSITE
+  FACEBOOK
+  GOOGLE
+  WHATSAPP
+  PORTAL
+  WALKIN
+  REFERRAL
+  OTHER
+}
+
+enum LeadStatus {
+  NEW
+  CONTACTED
+  INTERESTED
+  SITE_VISIT
+  NEGOTIATION
+  BOOKING
+  AGREEMENT
+  REGISTRATION
+  POSSESSION
+  LOST
+}
+
+enum FollowUpType {
+  CALL
+  EMAIL
+  WHATSAPP
+  MEETING
+  VISIT
+}
+
+enum FollowUpStatus {
+  SCHEDULED
+  COMPLETED
+  MISSED
+  RESCHEDULED
+}
+
+enum CallDirection {
+  INBOUND
+  OUTBOUND
+}
+
+enum CallStatus {
+  ANSWERED
+  MISSED
+  VOICEMAIL
+}
+
+enum SiteVisitOutcome {
+  INTERESTED
+  NOT_INTERESTED
+  NEGOTIATING
+}
+
+enum VisitStatus {
+  SCHEDULED
+  COMPLETED
+  CANCELLED
+}
+
+enum MeetingStatus {
+  SCHEDULED
+  COMPLETED
+  CANCELLED
+}
+
+enum BookingStatus {
+  BOOKED
+  AGREEMENT
+  REGISTERED
+  POSSESSION
+  CANCELLED
+}
+
+enum PaymentMode {
+  CASH
+  CHEQUE
+  NEFT
+  RTGS
+  UPI
+  DD
+}
+
+enum PaymentStatus {
+  PENDING
+  PARTIAL
+  PAID
+  OVERDUE
+  WAIVED
+}
+
+enum AgreementType {
+  ALLOTMENT
+  SALE
+  REGISTRATION
+}
+
+enum AgreementStatus {
+  DRAFT
+  SENT
+  SIGNED
+  REGISTERED
+  CANCELLED
+}
+
+enum EmployeeStatus {
+  ACTIVE
+  INACTIVE
+  ON_LEAVE
+  RESIGNED
+}
+
+enum AttendanceStatus {
+  PRESENT
+  ABSENT
+  HALF_DAY
+  WFH
+  HOLIDAY
+}
+
+enum LeaveType {
+  ANNUAL
+  SICK
+  CASUAL
+  MATERNITY
+  PATERNITY
+  UNPAID
+}
+
+enum PayslipStatus {
+  GENERATED
+  APPROVED
+  PAID
+}
+
+enum ExpenseCategory {
+  TRAVEL
+  FOOD
+  ACCOMMODATION
+  OFFICE
+  SITE
+  OTHER
+}
+
+enum VendorType {
+  CONTRACTOR
+  SUPPLIER
+  CONSULTANT
+  ARCHITECT
+  SUBCONTRACTOR
+}
+
+enum ContractStatus {
+  DRAFT
+  ACTIVE
+  COMPLETED
+  TERMINATED
+}
+
+enum POStatus {
+  DRAFT
+  SENT
+  APPROVED
+  DELIVERED
+  CANCELLED
+}
+
+enum GRNStatus {
+  PENDING
+  VERIFIED
+  REJECTED
+}
+
+enum EntryType {
+  DEBIT
+  CREDIT
+}
+
+enum InvoiceType {
+  SALES
+  PURCHASE
+}
+
+enum InvoiceStatus {
+  DRAFT
+  SENT
+  PAID
+  OVERDUE
+  CANCELLED
+}
+
+enum DocumentCategory {
+  LAND
+  AGREEMENT
+  APPROVAL
+  DRAWING
+  BLUEPRINT
+  LEGAL
+  REGISTRATION
+  OTHER
+}
+
+enum CampaignType {
+  FACEBOOK
+  GOOGLE
+  WHATSAPP
+  SMS
+  EMAIL
+}
+
+enum CampaignStatus {
+  DRAFT
+  ACTIVE
+  PAUSED
+  COMPLETED
+}
+
+enum PartnerType {
+  BROKER
+  AGENT
+  INFLUENCER
+  CORPORATE
+}
+
+enum CommissionStatus {
+  PENDING
+  APPROVED
+  PAID
+  CANCELLED
+}
+
+enum LegalType {
+  RERA
+  COURT
+  NOTICE
+  REGISTRATION
+}
+
+enum LegalStatus {
+  ACTIVE
+  CLOSED
+  PENDING
+  HEARING
+}
+
+enum AssetType {
+  MACHINERY
+  VEHICLE
+  EQUIPMENT
+  TOOL
+}
+
+enum AssetStatus {
+  ACTIVE
+  UNDER_MAINTENANCE
+  DISPOSED
+}
+
+enum MilestoneStatus {
+  PENDING
+  IN_PROGRESS
+  COMPLETED
+  DELAYED
+}
+
+enum DPRStatus {
+  DRAFT
+  SUBMITTED
+  APPROVED
+  REJECTED
+}
+
+enum ComplaintStatus {
+  OPEN
+  IN_PROGRESS
+  RESOLVED
+  CLOSED
+}
+
+enum TicketStatus {
+  OPEN
+  IN_PROGRESS
+  RESOLVED
+  CLOSED
+}
+
+enum NotificationType {
+  LEAD
+  FOLLOW_UP
+  PAYMENT
+  BOOKING
+  DPR
+  APPROVAL
+  SYSTEM
+}

@@ -1,0 +1,11 @@
+{
+  "name": "@propos/config",
+  "version": "0.1.0",
+  "private": true,
+  "exports": {
+    "./typescript/base.json": "./typescript/base.json",
+    "./typescript/nestjs.json": "./typescript/nestjs.json",
+    "./typescript/nextjs.json": "./typescript/nextjs.json",
+    "./eslint/base.js": "./eslint/base.js"
+  }
+}
