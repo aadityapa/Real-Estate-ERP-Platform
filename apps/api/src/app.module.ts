@@ -24,6 +24,8 @@ import { AiModule } from "./modules/ai/ai.module";
 import { CustomersModule } from "./modules/customers/customers.module";
 import { NotificationsModule } from "./modules/notifications/notifications.module";
 import { EventsModule } from "./modules/events/events.module";
+import { LmsModule } from "./modules/lms/lms.module";
+import { SupportModule } from "./modules/support/support.module";
 import { GraphqlFeatureModule } from "./graphql/graphql.module";import { JwtAuthGuard } from "./common/guards/jwt-auth.guard";
 import { TenantGuard } from "./common/guards/tenant.guard";
 import { PermissionsGuard } from "./common/guards/permissions.guard";
@@ -63,6 +65,8 @@ import { TransformInterceptor } from "./common/interceptors/transform.intercepto
     AiModule,
     CustomersModule,
     NotificationsModule,
+    LmsModule,
+    SupportModule,
   ],
   providers: [
     { provide: APP_FILTER, useClass: GlobalExceptionFilter },

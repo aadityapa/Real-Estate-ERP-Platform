@@ -34,6 +34,9 @@ export interface JwtPayload {
   email: string;
   roles: string[];
   permissions: string[];
+  allowedTabs?: string[];
+  defaultTab?: string;
+  tabId?: string;
 }
 
 export type PlanType = "STARTER" | "GROWTH" | "ENTERPRISE";

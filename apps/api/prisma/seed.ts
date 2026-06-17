@@ -123,6 +123,7 @@ async function main(): Promise<void> {
           tenantId: tenant.id,
           projectId: project.id,
           assignedToId: user.id,
+          leadRat: Math.floor(Math.random() * 101),
           ...lead,
         },
       });
@@ -183,6 +184,110 @@ async function main(): Promise<void> {
       type: "CONTRACTOR",
       phone: "9123456789",
       status: "ACTIVE",
+    },
+  });
+
+  // LMS seed data
+  const leads = await prisma.lead.findMany({
+    where: { tenantId: tenant.id },
+    take: 5,
+  });
+
+  if (leads.length >= 2) {
+    await prisma.clashLead.upsert({
+      where: { id: "seed-clash-1" },
+      update: {},
+      create: {
+        id: "seed-clash-1",
+        tenantId: tenant.id,
+        leadAId: leads[0]!.id,
+        leadBId: leads[1]!.id,
+        status: "PENDING",
+      },
+    });
+  }
+
+  await prisma.lmsGoal.upsert({
+    where: {
+      tenantId_projectId_userId_month_year: {
+        tenantId: tenant.id,
+        projectId: project.id,
+        userId: user.id,
+        month: new Date().getMonth() + 1,
+        year: new Date().getFullYear(),
+      },
+    },
+    update: {},
+    create: {
+      tenantId: tenant.id,
+      projectId: project.id,
+      userId: user.id,
+      month: new Date().getMonth() + 1,
+      year: new Date().getFullYear(),
+      targetEnquiries: 200,
+      targetSiteVisits: 80,
+      targetBookings: 30,
+      targetRevenue: 20000000,
+      createdById: user.id,
+    },
+  });
+
+  const unassignedLead = await prisma.lead.findFirst({
+    where: { tenantId: tenant.id, assignedToId: null },
+  });
+  if (!unassignedLead && leads[0]) {
+    await prisma.lead.update({
+      where: { id: leads[0].id },
+      data: { assignedToId: null, claimedById: null, leadLabel: "HOT", feedScore: 10 },
+    });
+  }
+
+  for (const lead of leads.slice(0, 3)) {
+    const existing = await prisma.appointment.findFirst({
+      where: { leadId: lead.id },
+    });
+    if (!existing) {
+      await prisma.appointment.create({
+        data: {
+          tenantId: tenant.id,
+          leadId: lead.id,
+          userId: user.id,
+          type: "FOLLOW_UP",
+          scheduledAt: new Date(Date.now() + Math.random() * 86400000 * 3),
+          projectName: project.name,
+          status: "PENDING",
+        },
+      });
+    }
+  }
+
+  await prisma.helpdeskTicket.upsert({
+    where: { ticketNumber: "TK-0001" },
+    update: {},
+    create: {
+      ticketNumber: "TK-0001",
+      tenantId: tenant.id,
+      raisedById: user.id,
+      subject: "Login issue — Sales App",
+      description: "Cannot login after password reset on mobile.",
+      category: "LOGIN",
+      priority: "HIGH",
+      module: "auth",
+      status: "OPEN",
+    },
+  });
+
+  await prisma.tabLoginConfig.upsert({
+    where: { tabId: "SALES_EXEC_001" },
+    update: {},
+    create: {
+      tenantId: tenant.id,
+      roleId: role.id,
+      tabId: "SALES_EXEC_001",
+      label: "Super Admin View",
+      allowedTabs: ["*"],
+      defaultTab: "/lms",
+      theme: "#3b82f6",
     },
   });
 

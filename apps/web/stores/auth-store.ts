@@ -10,6 +10,9 @@ interface AuthUser {
   tenantId: string;
   roles: string[];
   permissions: string[];
+  allowedTabs?: string[];
+  defaultTab?: string;
+  tabId?: string;
 }
 
 interface AuthState {

@@ -62,4 +62,32 @@ export class EventsService {
       timestamp: new Date().toISOString(),
     });
   }
+
+  emitLeadClaimed(
+    tenantId: string,
+    data: { leadId: string; claimedBy: string; claimedAt: string },
+  ): void {
+    this.gateway.server
+      .to(`tenant:${tenantId}:data-feed`)
+      .emit("lead:claimed", data);
+    this.emitToTenant(tenantId, {
+      type: "lead.claimed",
+      module: "lms",
+      message: "Lead claimed from data feed",
+      data,
+      timestamp: new Date().toISOString(),
+    });
+  }
+
+  emitLeadReleased(tenantId: string, data: { leadId: string }): void {
+    this.gateway.server
+      .to(`tenant:${tenantId}:data-feed`)
+      .emit("lead:released", data);
+  }
+
+  emitNewLeadToFeed(tenantId: string, lead: Record<string, unknown>): void {
+    this.gateway.server
+      .to(`tenant:${tenantId}:data-feed`)
+      .emit("lead:new", lead);
+  }
 }

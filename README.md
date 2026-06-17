@@ -56,9 +56,17 @@ Monorepo, NestJS, Next.js 15, Prisma (50+ models), Docker, JWT auth, RBAC guards
 ### Phase 9 — AI ✅
 - Lead scoring & follow-up suggestion stubs (GPT-ready)
 
-### Phase 10 — Customer Portal ✅
-- Customer list, portal pages
-- React Native (Expo) mobile stub
+### Phase 11 — LMS Module ✅
+- LMS Dashboard (KPIs, funnel, leaderboard, clash board)
+- Goals & Targets with progress tracking
+- Enhanced All Leads table (labels, call status, dismiss)
+- Lead Tracking timeline view
+- Appointments (Pending / Today / Upcoming)
+- Site Visits + YPSR report form
+- Data Feed (claim/release + WebSocket)
+- 6 LMS Reports (call log, site visits, digital, DA, etc.)
+- Tab Login IDs (role-based sidebar)
+- Support helpdesk (tickets + replies)
 
 ## Architecture
 

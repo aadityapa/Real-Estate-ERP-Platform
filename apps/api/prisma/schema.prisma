@@ -12,20 +12,26 @@ datasource db {
 // ============ MULTI-TENANCY ============
 
 model Tenant {
-  id            String         @id @default(cuid())
-  name          String
-  slug          String         @unique
-  domain        String?        @unique
-  logo          String?
-  plan          PlanType       @default(STARTER)
-  status        Status         @default(ACTIVE)
-  createdAt     DateTime       @default(now())
-  updatedAt     DateTime       @updatedAt
+  id        String   @id @default(cuid())
+  name      String
+  slug      String   @unique
+  domain    String?  @unique
+  logo      String?
+  plan      PlanType @default(STARTER)
+  status    Status   @default(ACTIVE)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  companies     Company[]
-  subscriptions Subscription[]
-  users         User[]
-  roles         Role[]
+  companies       Company[]
+  subscriptions   Subscription[]
+  users           User[]
+  roles           Role[]
+  lmsGoals        LmsGoal[]
+  clashLeads      ClashLead[]
+  tabLoginConfigs TabLoginConfig[]
+  helpdeskTickets HelpdeskTicket[]
+  daReports       DaReport[]
+  appointments    Appointment[]
 }
 
 model Company {
@@ -52,20 +58,20 @@ model Company {
 }
 
 model Project {
-  id                   String                @id @default(cuid())
-  companyId            String
-  name                 String
-  code                 String                @unique
-  type                 ProjectType
-  status               ProjectStatus         @default(PLANNING)
-  location             Json?
-  reraNumber           String?
-  startDate            DateTime?
-  expectedEnd          DateTime?
-  totalUnits           Int                   @default(0)
-  totalArea            Decimal?
-  createdAt            DateTime              @default(now())
-  updatedAt            DateTime              @updatedAt
+  id          String        @id @default(cuid())
+  companyId   String
+  name        String
+  code        String        @unique
+  type        ProjectType
+  status      ProjectStatus @default(PLANNING)
+  location    Json?
+  reraNumber  String?
+  startDate   DateTime?
+  expectedEnd DateTime?
+  totalUnits  Int           @default(0)
+  totalArea   Decimal?
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
 
   company              Company               @relation(fields: [companyId], references: [id])
   towers               Tower[]
@@ -83,6 +89,8 @@ model Project {
   purchaseOrders       PurchaseOrder[]
   inventoryItems       InventoryItem[]
   budgets              Budget[]
+  lmsGoals             LmsGoal[]
+  ypsrReports          YpsrReport[]
 
   @@index([status])
   @@index([createdAt])
@@ -118,16 +126,23 @@ model User {
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
 
-  tenant        Tenant         @relation(fields: [tenantId], references: [id])
-  employee      Employee?      @relation(fields: [employeeId], references: [id])
-  roles         UserRole[]
-  sessions      Session[]
-  notifications Notification[]
-  assignedLeads Lead[]         @relation("AssignedTo")
-  activities    Activity[]
-  followUps     FollowUp[]
-  callLogs      CallLog[]
-  meetings      Meeting[]
+  tenant          Tenant           @relation(fields: [tenantId], references: [id])
+  employee        Employee?        @relation(fields: [employeeId], references: [id])
+  roles           UserRole[]
+  sessions        Session[]
+  notifications   Notification[]
+  assignedLeads   Lead[]           @relation("AssignedTo")
+  claimedLeads    Lead[]           @relation("ClaimedBy")
+  activities      Activity[]
+  followUps       FollowUp[]
+  callLogs        CallLog[]
+  meetings        Meeting[]
+  appointments    Appointment[]
+  lmsGoals        LmsGoal[]
+  raisedTickets   HelpdeskTicket[] @relation("TicketRaisedBy")
+  assignedTickets HelpdeskTicket[] @relation("TicketAssignedTo")
+  ticketReplies   TicketReply[]
+  daReports       DaReport[]
 
   @@index([tenantId])
   @@index([status])
@@ -141,9 +156,10 @@ model Role {
   description String?
   isSystem    Boolean @default(false)
 
-  tenant      Tenant           @relation(fields: [tenantId], references: [id])
-  users       UserRole[]
-  permissions RolePermission[]
+  tenant          Tenant           @relation(fields: [tenantId], references: [id])
+  users           UserRole[]
+  permissions     RolePermission[]
+  tabLoginConfigs TabLoginConfig[]
 
   @@index([tenantId])
 }
@@ -287,47 +303,64 @@ model Expense {
 // ============ CRM ============
 
 model Lead {
-  id             String  @id @default(cuid())
-  tenantId       String
-  projectId      String?
-  assignedToId   String?
-  source         LeadSource
-  status         LeadStatus @default(NEW)
-  priority       Priority   @default(MEDIUM)
-  score          Int        @default(0)
-  firstName      String
-  lastName       String?
-  email          String?
-  phone          String
-  alternatePhone String?
-  budget         Json?
-  requirements   Json?
-  location       String?
-  utmSource      String?
-  utmMedium      String?
-  utmCampaign    String?
-  referredById   String?
-  aiScore        Int?
-  aiNotes        String?
-  aiNextAction   String?
-  isArchived     Boolean    @default(false)
-  createdAt      DateTime   @default(now())
-  updatedAt      DateTime   @updatedAt
+  id              String         @id @default(cuid())
+  tenantId        String
+  projectId       String?
+  assignedToId    String?
+  source          LeadSource
+  status          LeadStatus     @default(NEW)
+  priority        Priority       @default(MEDIUM)
+  score           Int            @default(0)
+  firstName       String
+  lastName        String?
+  email           String?
+  phone           String
+  alternatePhone  String?
+  budget          Json?
+  requirements    Json?
+  location        String?
+  utmSource       String?
+  utmMedium       String?
+  utmCampaign     String?
+  referredById    String?
+  aiScore         Int?
+  aiNotes         String?
+  aiNextAction    String?
+  leadLabel       LeadLabel      @default(WARM)
+  leadCallStatus  LeadCallStatus @default(PENDING)
+  leadRat         Int            @default(0)
+  description     String?
+  claimedById     String?
+  claimedAt       DateTime?
+  claimReleasedAt DateTime?
+  claimHistory    Json?
+  feedScore       Int            @default(0)
+  dismissReason   DismissReason?
+  dismissNotes    String?
+  isArchived      Boolean        @default(false)
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
 
   project      Project?        @relation(fields: [projectId], references: [id])
   assignedTo   User?           @relation("AssignedTo", fields: [assignedToId], references: [id])
+  claimedBy    User?           @relation("ClaimedBy", fields: [claimedById], references: [id])
   referredBy   ChannelPartner? @relation("ReferredBy", fields: [referredById], references: [id])
   followUps    FollowUp[]
   callLogs     CallLog[]
   siteVisits   SiteVisit[]
   meetings     Meeting[]
   activities   Activity[]
+  appointments Appointment[]
+  clashLeadsA  ClashLead[]     @relation("ClashLeadA")
+  clashLeadsB  ClashLead[]     @relation("ClashLeadB")
   booking      Booking?
 
   @@index([tenantId])
   @@index([status])
   @@index([createdAt])
   @@index([assignedToId])
+  @@index([claimedById])
+  @@index([leadLabel])
 }
 
 model FollowUp {
@@ -374,8 +407,188 @@ model SiteVisit {
   status      VisitStatus       @default(SCHEDULED)
   createdAt   DateTime          @default(now())
 
-  lead    Lead    @relation(fields: [leadId], references: [id])
+  lead       Lead        @relation(fields: [leadId], references: [id])
+  project    Project     @relation(fields: [projectId], references: [id])
+  ypsrReport YpsrReport?
+}
+
+// ============ LMS MODULE ============
+
+model TabLoginConfig {
+  id          String   @id @default(cuid())
+  tenantId    String
+  roleId      String
+  tabId       String   @unique
+  label       String
+  allowedTabs String[]
+  defaultTab  String
+  theme       String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+  role   Role   @relation(fields: [roleId], references: [id])
+
+  @@index([tenantId])
+  @@index([roleId])
+}
+
+model LmsGoal {
+  id               String   @id @default(cuid())
+  tenantId         String
+  projectId        String
+  userId           String?
+  teamId           String?
+  month            Int
+  year             Int
+  targetEnquiries  Int      @default(0)
+  targetSiteVisits Int      @default(0)
+  targetBookings   Int      @default(0)
+  targetRevenue    Decimal  @default(0) @db.Decimal(15, 2)
+  createdById      String
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  tenant  Tenant  @relation(fields: [tenantId], references: [id])
   project Project @relation(fields: [projectId], references: [id])
+  user    User?   @relation(fields: [userId], references: [id])
+
+  @@unique([tenantId, projectId, userId, month, year])
+  @@index([tenantId])
+}
+
+model ClashLead {
+  id           String          @id @default(cuid())
+  tenantId     String
+  leadAId      String
+  leadBId      String
+  assignedToId String?
+  status       ClashLeadStatus @default(PENDING)
+  resolvedById String?
+  resolvedAt   DateTime?
+  notes        String?
+  detectedAt   DateTime        @default(now())
+  createdAt    DateTime        @default(now())
+  updatedAt    DateTime        @updatedAt
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+  leadA  Lead   @relation("ClashLeadA", fields: [leadAId], references: [id])
+  leadB  Lead   @relation("ClashLeadB", fields: [leadBId], references: [id])
+
+  @@index([tenantId])
+  @@index([status])
+}
+
+model YpsrReport {
+  id                 String            @id @default(cuid())
+  siteVisitId        String            @unique
+  projectId          String
+  visitDate          DateTime
+  leadName           String
+  salesPerson        String
+  unitsShown         String[]
+  amenitiesPresented String[]
+  leadFeedback       String?
+  interestLevel      YpsrInterestLevel
+  objections         String[]
+  priceOffered       Decimal?          @db.Decimal(15, 2)
+  followUpDate       DateTime?
+  followUpAction     String?
+  outcome            YpsrOutcome
+  photos             String[]
+  createdAt          DateTime          @default(now())
+  updatedAt          DateTime          @updatedAt
+
+  siteVisit SiteVisit @relation(fields: [siteVisitId], references: [id])
+  project   Project   @relation(fields: [projectId], references: [id])
+
+  @@index([projectId])
+}
+
+model Appointment {
+  id          String            @id @default(cuid())
+  tenantId    String
+  leadId      String
+  userId      String
+  type        AppointmentType
+  scheduledAt DateTime
+  duration    Int?
+  notes       String?
+  status      AppointmentStatus @default(PENDING)
+  projectName String?
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+  lead   Lead   @relation(fields: [leadId], references: [id])
+  user   User   @relation(fields: [userId], references: [id])
+
+  @@index([tenantId])
+  @@index([scheduledAt])
+  @@index([status])
+}
+
+model HelpdeskTicket {
+  id           String          @id @default(cuid())
+  ticketNumber String          @unique
+  tenantId     String
+  raisedById   String
+  assignedToId String?
+  subject      String
+  description  String
+  category     SupportCategory @default(OTHER)
+  priority     Priority        @default(MEDIUM)
+  module       String?
+  screenshots  String[]
+  status       TicketStatus    @default(OPEN)
+  resolvedAt   DateTime?
+  resolution   String?
+  createdAt    DateTime        @default(now())
+  updatedAt    DateTime        @updatedAt
+
+  tenant     Tenant        @relation(fields: [tenantId], references: [id])
+  raisedBy   User          @relation("TicketRaisedBy", fields: [raisedById], references: [id])
+  assignedTo User?         @relation("TicketAssignedTo", fields: [assignedToId], references: [id])
+  replies    TicketReply[]
+
+  @@index([tenantId])
+  @@index([raisedById])
+  @@index([status])
+}
+
+model TicketReply {
+  id          String   @id @default(cuid())
+  ticketId    String
+  userId      String
+  message     String
+  attachments String[]
+  isInternal  Boolean  @default(false)
+  createdAt   DateTime @default(now())
+
+  ticket HelpdeskTicket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  user   User           @relation(fields: [userId], references: [id])
+
+  @@index([ticketId])
+}
+
+model DaReport {
+  id               String   @id @default(cuid())
+  tenantId         String
+  userId           String
+  reportDate       DateTime @db.Date
+  callsMade        Int      @default(0)
+  leadsContacted   Int      @default(0)
+  siteVisits       Int      @default(0)
+  followUpsDone    Int      @default(0)
+  newLeadsAssigned Int      @default(0)
+  createdAt        DateTime @default(now())
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+  user   User   @relation(fields: [userId], references: [id])
+
+  @@unique([tenantId, userId, reportDate])
+  @@index([tenantId])
+  @@index([reportDate])
 }
 
 model Meeting {
@@ -452,24 +665,24 @@ model Unit {
 }
 
 model Booking {
-  id              String        @id @default(cuid())
-  bookingNumber   String        @unique
-  leadId          String        @unique
-  unitId          String        @unique
-  customerId      String
-  salesPersonId   String
-  unitPrice       Decimal
-  premiumAmount   Decimal       @default(0)
-  discountAmount  Decimal       @default(0)
-  totalAmount     Decimal
-  bookingAmount   Decimal
-  bookingDate     DateTime
-  paymentPlanId   String?
-  status          BookingStatus @default(BOOKED)
-  cancelledAt     DateTime?
-  cancelReason    String?
-  createdAt       DateTime      @default(now())
-  updatedAt       DateTime      @updatedAt
+  id             String        @id @default(cuid())
+  bookingNumber  String        @unique
+  leadId         String        @unique
+  unitId         String        @unique
+  customerId     String
+  salesPersonId  String
+  unitPrice      Decimal
+  premiumAmount  Decimal       @default(0)
+  discountAmount Decimal       @default(0)
+  totalAmount    Decimal
+  bookingAmount  Decimal
+  bookingDate    DateTime
+  paymentPlanId  String?
+  status         BookingStatus @default(BOOKED)
+  cancelledAt    DateTime?
+  cancelReason   String?
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
 
   lead        Lead         @relation(fields: [leadId], references: [id])
   unit        Unit         @relation(fields: [unitId], references: [id])
@@ -485,12 +698,12 @@ model Booking {
 }
 
 model PaymentPlan {
-  id          String  @id @default(cuid())
-  projectId   String
-  name        String
-  description String?
+  id           String  @id @default(cuid())
+  projectId    String
+  name         String
+  description  String?
   installments Json
-  isActive    Boolean @default(true)
+  isActive     Boolean @default(true)
 
   project  Project   @relation(fields: [projectId], references: [id])
   bookings Booking[]
@@ -650,17 +863,17 @@ model DailyProgressReport {
 }
 
 model QualityCheck {
-  id            String    @id @default(cuid())
+  id            String   @id @default(cuid())
   projectId     String
   milestoneId   String?
-  checkDate     DateTime  @db.Date
+  checkDate     DateTime @db.Date
   inspector     String
   checkType     String
   checklist     Json
   overallStatus String
   notes         String?
   photos        String[]
-  createdAt     DateTime  @default(now())
+  createdAt     DateTime @default(now())
 
   project   Project    @relation(fields: [projectId], references: [id])
   milestone Milestone? @relation(fields: [milestoneId], references: [id])
@@ -734,8 +947,8 @@ model PurchaseRequisition {
 }
 
 model PurchaseOrder {
-  id              String      @id @default(cuid())
-  poNumber        String      @unique
+  id              String    @id @default(cuid())
+  poNumber        String    @unique
   vendorId        String
   requisitionId   String?
   projectId       String
@@ -746,10 +959,10 @@ model PurchaseOrder {
   deliveryDate    DateTime?
   deliveryAddress String?
   terms           String?
-  status          POStatus    @default(DRAFT)
+  status          POStatus  @default(DRAFT)
   approvedBy      String?
   approvedAt      DateTime?
-  createdAt       DateTime    @default(now())
+  createdAt       DateTime  @default(now())
 
   vendor      Vendor               @relation(fields: [vendorId], references: [id])
   requisition PurchaseRequisition? @relation(fields: [requisitionId], references: [id])
@@ -1015,7 +1228,7 @@ model Asset {
 }
 
 model MaintenanceLog {
-  id          String   @id @default(cuid())
+  id          String    @id @default(cuid())
   assetId     String
   type        String
   date        DateTime
@@ -1023,7 +1236,7 @@ model MaintenanceLog {
   cost        Decimal?
   vendor      String?
   nextDue     DateTime?
-  createdAt   DateTime @default(now())
+  createdAt   DateTime  @default(now())
 
   asset Asset @relation(fields: [assetId], references: [id])
 }
@@ -1453,4 +1666,70 @@ enum NotificationType {
   DPR
   APPROVAL
   SYSTEM
+}
+
+enum LeadLabel {
+  HOT
+  WARM
+  COLD
+  LOST
+}
+
+enum LeadCallStatus {
+  ANSWERED
+  MISSED
+  PENDING
+}
+
+enum DismissReason {
+  NOT_INTERESTED
+  BUDGET_MISMATCH
+  DUPLICATE
+  WRONG_NUMBER
+  OTHER
+}
+
+enum ClashLeadStatus {
+  PENDING
+  RESOLVED
+  DISMISSED
+}
+
+enum YpsrInterestLevel {
+  HIGH
+  MEDIUM
+  LOW
+  NOT_INTERESTED
+}
+
+enum YpsrOutcome {
+  BOOKING_LIKELY
+  REVISIT_NEEDED
+  NEGOTIATING
+  LOST
+}
+
+enum AppointmentType {
+  CALL
+  SITE_VISIT
+  MEETING
+  FOLLOW_UP
+}
+
+enum AppointmentStatus {
+  PENDING
+  COMPLETED
+  MISSED
+  RESCHEDULED
+  CANCELLED
+}
+
+enum SupportCategory {
+  LOGIN
+  DATA
+  REPORT
+  FEATURE_REQUEST
+  BUG
+  PERFORMANCE
+  OTHER
 }

@@ -3,6 +3,7 @@ import { JwtService, JwtSignOptions } from "@nestjs/jwt";
 import { ConfigService } from "@nestjs/config";
 import * as bcrypt from "bcrypt";
 import { PrismaService } from "../../database/prisma.service";
+import { TabLoginsService } from "../admin/tab-logins/tab-logins.service";
 import { LoginDto, RegisterDto } from "./dto/auth.dto";
 import type { JwtPayload } from "@propos/shared-types";
 
@@ -20,6 +21,9 @@ export interface AuthUserResponse {
   tenantId: string;
   roles: string[];
   permissions: string[];
+  allowedTabs?: string[];
+  defaultTab?: string;
+  tabId?: string;
 }
 
 @Injectable()
@@ -30,6 +34,7 @@ export class AuthService {
     private readonly prisma: PrismaService,
     private readonly jwtService: JwtService,
     private readonly configService: ConfigService,
+    private readonly tabLoginsService: TabLoginsService,
   ) {}
 
   async register(dto: RegisterDto): Promise<AuthTokens & { user: AuthUserResponse }> {
@@ -169,12 +174,19 @@ export class AuthService {
       ),
     );
 
+    const tabConfig = await this.tabLoginsService.getForUser(userId);
+
     return {
       userId: user.id,
       tenantId: user.tenantId,
       email: user.email,
       roles: [...new Set(roles)],
       permissions: [...new Set(permissions)],
+      ...(tabConfig && {
+        allowedTabs: tabConfig.allowedTabs,
+        defaultTab: tabConfig.defaultTab,
+        tabId: tabConfig.tabId,
+      }),
     };
   }
 
@@ -225,6 +237,9 @@ export class AuthService {
       tenantId: user.tenantId,
       roles: payload.roles,
       permissions: payload.permissions,
+      allowedTabs: payload.allowedTabs,
+      defaultTab: payload.defaultTab,
+      tabId: payload.tabId,
     };
   }
 }

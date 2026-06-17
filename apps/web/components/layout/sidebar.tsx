@@ -18,10 +18,60 @@ import {
   ChevronLeft,
   ChevronRight,
   ChevronDown,
+  Target,
+  Headphones,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { APP_NAME, NAV_ITEMS } from "@/lib/constants";
+import { APP_NAME, NAV_ITEMS, type NavItem } from "@/lib/constants";
 import { useSidebarStore } from "@/stores/sidebar-store";
+import { useAuthStore } from "@/stores/auth-store";
+
+function filterNavByTabs(items: NavItem[], allowedTabs?: string[]): NavItem[] {
+  if (!allowedTabs || allowedTabs.includes("*")) return items;
+
+  const tabRouteMap: Record<string, string[]> = {
+    lms: ["/lms"],
+    leads: ["/lms/leads", "/crm/leads"],
+    appointments: ["/lms/appointments"],
+    "site-visits": ["/lms/site-visits", "/crm/site-visits"],
+    "data-feed": ["/lms/data-feed"],
+    reports: ["/lms/reports"],
+    goals: ["/lms/goals"],
+    support: ["/support"],
+    crm: ["/crm"],
+    sales: ["/sales"],
+    construction: ["/construction"],
+    finance: ["/finance", "/vendors", "/procurement"],
+    hr: ["/hr"],
+    admin: ["/admin"],
+  };
+
+  const allowedPrefixes = new Set<string>();
+  for (const tab of allowedTabs) {
+    const routes = tabRouteMap[tab] ?? [`/${tab}`];
+    routes.forEach((r) => allowedPrefixes.add(r));
+  }
+
+  return items
+    .map((item) => {
+      if (item.href) {
+        const ok = [...allowedPrefixes].some(
+          (p) => item.href === p || item.href?.startsWith(`${p}/`),
+        );
+        return ok ? item : null;
+      }
+      if (item.children) {
+        const children = item.children.filter((c) =>
+          [...allowedPrefixes].some(
+            (p) => c.href === p || c.href.startsWith(`${p}/`),
+          ),
+        );
+        return children.length > 0 ? { ...item, children } : null;
+      }
+      return item;
+    })
+    .filter((item): item is NavItem => item !== null);
+}
 
 const iconMap = {
   LayoutDashboard,
@@ -35,6 +85,8 @@ const iconMap = {
   Megaphone,
   Handshake,
   Sparkles,
+  Target,
+  Headphones,
 } as const;
 
 function isChildActive(pathname: string, href: string): boolean {
@@ -56,14 +108,16 @@ function isGroupActive(
 export function Sidebar(): React.ReactElement {
   const pathname = usePathname();
   const { collapsed, toggle } = useSidebarStore();
+  const allowedTabs = useAuthStore((s) => s.user?.allowedTabs);
+  const navItems = filterNavByTabs(NAV_ITEMS, allowedTabs);
   const [expanded, setExpanded] = useState<string[]>([]);
 
   useEffect(() => {
-    const activeGroups = NAV_ITEMS.filter(
+    const activeGroups = navItems.filter(
       (item) => item.children && isGroupActive(pathname, item),
     ).map((item) => item.label);
     setExpanded((prev) => [...new Set([...prev, ...activeGroups])]);
-  }, [pathname]);
+  }, [pathname, navItems]);
 
   const toggleGroup = (label: string) => {
     setExpanded((prev) =>
@@ -99,7 +153,7 @@ export function Sidebar(): React.ReactElement {
       </div>
 
       <nav className="flex-1 space-y-1 overflow-y-auto p-3">
-        {NAV_ITEMS.map((item) => {
+        {navItems.map((item) => {
           const Icon = iconMap[item.icon as keyof typeof iconMap];
 
           if (item.children) {

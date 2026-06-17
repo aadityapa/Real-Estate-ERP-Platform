@@ -57,4 +57,12 @@ export class EventsGateway implements OnGatewayConnection, OnGatewayDisconnect {
   handlePing(client: Socket): { event: string; data: string } {
     return { event: "pong", data: "ok" };
   }
+
+  @SubscribeMessage("join:data-feed")
+  async handleJoinDataFeed(client: Socket): Promise<void> {
+    const user = client.data.user as JwtPayload | undefined;
+    if (user) {
+      await client.join(`tenant:${user.tenantId}:data-feed`);
+    }
+  }
 }

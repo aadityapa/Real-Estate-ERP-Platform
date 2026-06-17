@@ -8,6 +8,7 @@ import {
   IsObject,
   IsOptional,
   IsString,
+  Max,
   Min,
 } from "class-validator";
 import { PaginationDto } from "../../../../common/dto/pagination.dto";
@@ -94,6 +95,13 @@ export class CreateLeadDto {
   @IsOptional()
   @IsObject()
   requirements?: Record<string, unknown>;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(0)
+  @Max(100)
+  leadRat?: number;
 }
 
 export class UpdateLeadDto {
@@ -154,6 +162,13 @@ export class UpdateLeadDto {
   @IsInt()
   @Min(0)
   score?: number;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(0)
+  @Max(100)
+  leadRat?: number;
 }
 
 export class FilterLeadDto extends PaginationDto {

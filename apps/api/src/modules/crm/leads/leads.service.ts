@@ -126,6 +126,12 @@ export class LeadsService {
         id: lead.id,
         firstName: lead.firstName,
       });
+      this.eventsService.emitNewLeadToFeed(tenantId, {
+        id: lead.id,
+        firstName: lead.firstName,
+        phone: lead.phone,
+        source: lead.source,
+      });
 
       return lead;
     } catch (error) {

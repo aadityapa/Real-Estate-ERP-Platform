@@ -15,6 +15,29 @@ export type NavItem = {
 export const NAV_ITEMS: NavItem[] = [
   { label: "Dashboard", href: "/", icon: "LayoutDashboard" },
   {
+    label: "LMS",
+    icon: "Target",
+    children: [
+      { label: "LMS Dashboard", href: "/lms" },
+      { label: "Goals & Targets", href: "/lms/goals" },
+      { label: "All Leads", href: "/lms/leads" },
+      { label: "Lead Tracking", href: "/lms/leads/tracking" },
+      { label: "Appointments", href: "/lms/appointments" },
+      { label: "Site Visits", href: "/lms/site-visits" },
+      { label: "Data Feed", href: "/lms/data-feed" },
+      {
+        label: "Reports",
+        href: "/lms/reports",
+      },
+      { label: "Call Log", href: "/lms/reports/call-log" },
+      { label: "Site Visited", href: "/lms/reports/site-visits" },
+      { label: "Digital Hoarding", href: "/lms/reports/digital-hoarding" },
+      { label: "Digital Enquiry", href: "/lms/reports/digital-enquiry" },
+      { label: "Lead Tracking Rpt", href: "/lms/reports/lead-tracking" },
+      { label: "DA Report", href: "/lms/reports/da-report" },
+    ],
+  },
+  {
     label: "CRM",
     icon: "Users",
     children: [
@@ -92,6 +115,7 @@ export const NAV_ITEMS: NavItem[] = [
     ],
   },
   { label: "AI", href: "/ai", icon: "Sparkles" },
+  { label: "Support", href: "/support", icon: "Headphones" },
   {
     label: "Admin",
     icon: "Settings",
@@ -100,6 +124,7 @@ export const NAV_ITEMS: NavItem[] = [
       { label: "Companies", href: "/admin/companies" },
       { label: "Projects", href: "/admin/projects" },
       { label: "Users", href: "/admin/users" },
+      { label: "Tab Logins", href: "/admin/tab-logins" },
     ],
   },
 ];
