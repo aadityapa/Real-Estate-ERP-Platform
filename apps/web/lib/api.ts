@@ -1,8 +1,6 @@
-import type { ApiResponse, ApiError, PaginationMeta } from "@propos/shared-types";
+import type { ApiResponse, ApiError, PaginationMeta } from "@/lib/types/api";
+import { API_URL } from "@/lib/env";
 import { useAuthStore } from "@/stores/auth-store";
-
-const API_URL =
-  process.env["NEXT_PUBLIC_API_URL"] ?? "http://localhost:3001/api/v1";
 
 export class ApiClientError extends Error {
   constructor(

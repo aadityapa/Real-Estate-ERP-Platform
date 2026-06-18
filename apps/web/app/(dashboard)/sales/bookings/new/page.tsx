@@ -9,7 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { StatusBadge } from "@/components/tables/filter-bar";
 import { api } from "@/lib/api";
 import { useAuthStore } from "@/stores/auth-store";
-import { formatCurrency } from "@propos/shared-utils";
+import { formatCurrency } from "@/lib/format";
 
 interface Unit {
   id: string;

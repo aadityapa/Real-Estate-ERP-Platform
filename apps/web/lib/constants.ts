@@ -1,5 +1,4 @@
-export const API_URL =
-  process.env["NEXT_PUBLIC_API_URL"] ?? "http://localhost:3001/api/v1";
+export { API_URL, API_ORIGIN, WS_URL } from "@/lib/env";
 
 export const APP_NAME = "PropOS";
 

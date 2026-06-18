@@ -1,6 +1,6 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
-import type { JwtPayload } from "@propos/shared-types";
+import type { JwtPayload } from "@/lib/types/api";
 
 interface AuthUser {
   id: string;

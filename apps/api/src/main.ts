@@ -3,13 +3,14 @@ import { ValidationPipe } from "@nestjs/common";
 import { NestExpressApplication } from "@nestjs/platform-express";
 import { join } from "path";
 import { AppModule } from "./app.module";
+import { getCorsOrigins } from "./common/config/cors";
 
 async function bootstrap(): Promise<void> {
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
 
   app.setGlobalPrefix("api/v1");
   app.enableCors({
-    origin: process.env["APP_URL"] ?? "http://localhost:3000",
+    origin: getCorsOrigins(),
     credentials: true,
   });
 

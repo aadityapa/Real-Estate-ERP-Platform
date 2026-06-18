@@ -2,7 +2,7 @@
 
 import { ModuleListPage } from "@/components/modules/module-list-page";
 import { StatusBadge } from "@/components/tables/filter-bar";
-import { formatCurrency } from "@propos/shared-utils";
+import { formatCurrency } from "@/lib/format";
 
 type Campaign = {
   id: string;

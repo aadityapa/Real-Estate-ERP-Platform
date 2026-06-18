@@ -1,7 +1,7 @@
 "use client";
 
 import { ModuleListPage } from "@/components/modules/module-list-page";
-import { formatCurrency } from "@propos/shared-utils";
+import { formatCurrency } from "@/lib/format";
 
 type Budget = {
   id: string;

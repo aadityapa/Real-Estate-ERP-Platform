@@ -2,7 +2,7 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { api } from "@/lib/api";
-import type { PaginationMeta } from "@propos/shared-types";
+import type { PaginationMeta } from "@/lib/types/api";
 
 export function useModuleList<T extends { id: string }>(
   endpoint: string,

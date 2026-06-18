@@ -4,13 +4,23 @@ Enterprise-grade multi-tenant SaaS for Indian real estate developers.
 
 ## Quick Start
 
+Backend and frontend run as **separate apps** with their own environment files.
+
 ```bash
 pnpm install
+cp apps/api/.env.example apps/api/.env
+cp apps/web/.env.example apps/web/.env.local
 docker compose -f infrastructure/docker/docker-compose.yml up -d
 pnpm db:generate
-pnpm db:migrate
+pnpm db:push
 pnpm --filter @propos/api db:seed
-pnpm dev
+```
+
+Run in two terminals (or use `pnpm dev` to start both):
+
+```bash
+pnpm dev:api   # http://localhost:3001/api/v1
+pnpm dev:web   # http://localhost:3000
 ```
 
 | Service | URL |
@@ -18,6 +28,14 @@ pnpm dev
 | Web | http://localhost:3000 |
 | API | http://localhost:3001/api/v1 |
 | Login | admin@demo.propos.in / Admin@123 |
+
+See `apps/api/README.md` and `apps/web/README.md` for standalone setup and Docker deployment.
+
+Full stack with Docker (Postgres + Redis + API + Web):
+
+```bash
+docker compose -f infrastructure/docker/docker-compose.full.yml up -d --build
+```
 
 ## Implementation Status
 
@@ -71,11 +89,13 @@ Monorepo, NestJS, Next.js 15, Prisma (50+ models), Docker, JWT auth, RBAC guards
 ## Architecture
 
 ```
-apps/web     → Next.js 15 + Tailwind v4 + shadcn/ui
-apps/api     → NestJS 11 + Prisma + PostgreSQL
+apps/web     → Next.js 15 frontend (REST + WebSocket client only)
+apps/api     → NestJS 11 backend (Prisma + PostgreSQL + Redis)
 apps/mobile  → Expo React Native
-packages/    → shared-types, shared-utils, config
+packages/    → shared-types & shared-utils (API + mobile only)
 ```
+
+The web app has **no dependency** on shared packages — it can be deployed or extracted independently.
 
 ## API Modules
 

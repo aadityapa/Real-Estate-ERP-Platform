@@ -9,7 +9,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { StatusBadge } from "@/components/tables/filter-bar";
 import { DataTable } from "@/components/tables/data-table";
 import { api } from "@/lib/api";
-import { formatCurrency } from "@propos/shared-utils";
+import { formatCurrency } from "@/lib/format";
+import { API_ORIGIN } from "@/lib/env";
 import { Download, FileText } from "lucide-react";
 
 interface BookingDetail {
@@ -32,8 +33,6 @@ interface BookingDetail {
     receipt?: { id: string; receiptNumber: string; pdfUrl?: string };
   }[];
 }
-
-const API_BASE = process.env["NEXT_PUBLIC_API_URL"]?.replace("/api/v1", "") ?? "http://localhost:3001";
 
 export default function BookingDetailPage({
   params,
@@ -80,7 +79,7 @@ export default function BookingDetailPage({
           {booking.agreement?.documentUrl && (
             <Button variant="outline" asChild>
               <a
-                href={`${API_BASE}${booking.agreement.documentUrl}`}
+                href={`${API_ORIGIN}${booking.agreement.documentUrl}`}
                 target="_blank"
                 rel="noopener noreferrer"
               >
@@ -202,7 +201,7 @@ export default function BookingDetailPage({
                       </div>
                     ) : row.receipt?.pdfUrl ? (
                       <a
-                        href={`${API_BASE}${row.receipt.pdfUrl}`}
+                        href={`${API_ORIGIN}${row.receipt.pdfUrl}`}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="text-xs text-accent hover:underline"

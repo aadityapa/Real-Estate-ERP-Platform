@@ -9,10 +9,11 @@ import { Logger } from "@nestjs/common";
 import { JwtService } from "@nestjs/jwt";
 import { Server, Socket } from "socket.io";
 import type { JwtPayload } from "@propos/shared-types";
+import { getCorsOrigins } from "../../common/config/cors";
 
 @WebSocketGateway({
   cors: {
-    origin: process.env["APP_URL"] ?? "http://localhost:3000",
+    origin: getCorsOrigins(),
     credentials: true,
   },
   namespace: "/events",

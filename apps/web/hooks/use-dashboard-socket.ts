@@ -2,10 +2,8 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { io, type Socket } from "socket.io-client";
+import { WS_URL } from "@/lib/env";
 import { useAuthStore } from "@/stores/auth-store";
-
-const WS_URL =
-  process.env["NEXT_PUBLIC_WS_URL"] ?? "http://localhost:3001";
 
 export interface DashboardEvent {
   type: string;

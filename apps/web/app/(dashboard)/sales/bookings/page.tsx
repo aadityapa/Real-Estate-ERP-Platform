@@ -5,7 +5,7 @@ import { Plus } from "lucide-react";
 import { ModuleListPage } from "@/components/modules/module-list-page";
 import { StatusBadge } from "@/components/tables/filter-bar";
 import { Button } from "@/components/ui/button";
-import { formatCurrency } from "@propos/shared-utils";
+import { formatCurrency } from "@/lib/format";
 
 type Booking = {
   id: string;
