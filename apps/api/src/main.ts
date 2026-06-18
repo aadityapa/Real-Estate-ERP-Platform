@@ -26,8 +26,10 @@ async function bootstrap(): Promise<void> {
   );
 
   const port = process.env["PORT"] ?? 3001;
-  await app.listen(port);
+  const host = process.env["HOST"] ?? "0.0.0.0";
+  await app.listen(port, host);
   console.log(`PropOS API running on http://localhost:${port}/api/v1`);
+  console.log(`Network API: http://<your-lan-ip>:${port}/api/v1`);
   console.log(`GraphQL playground: http://localhost:${port}/graphql`);
   console.log(`WebSocket events: ws://localhost:${port}/events`);
 }
