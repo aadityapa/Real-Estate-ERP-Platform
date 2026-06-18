@@ -1,5 +1,5 @@
 {
-  "name": "@propos/api",
+  "name": "@propos/backend",
   "version": "0.1.0",
   "private": true,
   "scripts": {

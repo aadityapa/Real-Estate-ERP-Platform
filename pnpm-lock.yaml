@@ -18,7 +18,35 @@ importers:
         specifier: ^5.8.3
         version: 5.9.3
 
-  apps/api:
+  apps/mobile:
+    dependencies:
+      '@propos/shared-types':
+        specifier: workspace:*
+        version: link:../../packages/shared-types
+      expo:
+        specifier: ~53.0.0
+        version: 53.0.27(@babel/core@7.29.7)(@expo/metro-runtime@5.0.4(react-native@0.79.0(@babel/core@7.29.7)(@types/react@19.0.14)(react@19.0.0)))(graphql@16.14.2)(react-native@0.79.0(@babel/core@7.29.7)(@types/react@19.0.14)(react@19.0.0))(react@19.0.0)
+      expo-router:
+        specifier: ~5.0.0
+        version: 5.0.7(qbfhpoyvy73lqxnx4jlnnnuixu)
+      expo-status-bar:
+        specifier: ~2.2.0
+        version: 2.2.3(react-native@0.79.0(@babel/core@7.29.7)(@types/react@19.0.14)(react@19.0.0))(react@19.0.0)
+      react:
+        specifier: 19.0.0
+        version: 19.0.0
+      react-native:
+        specifier: 0.79.0
+        version: 0.79.0(@babel/core@7.29.7)(@types/react@19.0.14)(react@19.0.0)
+    devDependencies:
+      '@types/react':
+        specifier: ~19.0.0
+        version: 19.0.14
+      typescript:
+        specifier: ^5.8.3
+        version: 5.9.3
+
+  backend:
     dependencies:
       '@apollo/server':
         specifier: ^4.12.1
@@ -64,10 +92,10 @@ importers:
         version: 6.19.3(prisma@6.19.3(typescript@5.9.3))(typescript@5.9.3)
       '@propos/shared-types':
         specifier: workspace:*
-        version: link:../../packages/shared-types
+        version: link:../packages/shared-types
       '@propos/shared-utils':
         specifier: workspace:*
-        version: link:../../packages/shared-utils
+        version: link:../packages/shared-utils
       bcrypt:
         specifier: ^5.1.1
         version: 5.1.1
@@ -119,7 +147,7 @@ importers:
         version: 11.1.27(@nestjs/common@11.1.27(class-transformer@0.5.1)(class-validator@0.14.4)(reflect-metadata@0.2.2)(rxjs@7.8.2))(@nestjs/core@11.1.27)(@nestjs/platform-express@11.1.27)
       '@propos/config':
         specifier: workspace:*
-        version: link:../../packages/config
+        version: link:../packages/config
       '@types/bcrypt':
         specifier: ^5.0.2
         version: 5.0.2
@@ -154,35 +182,7 @@ importers:
         specifier: ^5.8.3
         version: 5.9.3
 
-  apps/mobile:
-    dependencies:
-      '@propos/shared-types':
-        specifier: workspace:*
-        version: link:../../packages/shared-types
-      expo:
-        specifier: ~53.0.0
-        version: 53.0.27(@babel/core@7.29.7)(@expo/metro-runtime@5.0.4(react-native@0.79.0(@babel/core@7.29.7)(@types/react@19.0.14)(react@19.0.0)))(graphql@16.14.2)(react-native@0.79.0(@babel/core@7.29.7)(@types/react@19.0.14)(react@19.0.0))(react@19.0.0)
-      expo-router:
-        specifier: ~5.0.0
-        version: 5.0.7(qbfhpoyvy73lqxnx4jlnnnuixu)
-      expo-status-bar:
-        specifier: ~2.2.0
-        version: 2.2.3(react-native@0.79.0(@babel/core@7.29.7)(@types/react@19.0.14)(react@19.0.0))(react@19.0.0)
-      react:
-        specifier: 19.0.0
-        version: 19.0.0
-      react-native:
-        specifier: 0.79.0
-        version: 0.79.0(@babel/core@7.29.7)(@types/react@19.0.14)(react@19.0.0)
-    devDependencies:
-      '@types/react':
-        specifier: ~19.0.0
-        version: 19.0.14
-      typescript:
-        specifier: ^5.8.3
-        version: 5.9.3
-
-  apps/web:
+  frontend:
     dependencies:
       '@dnd-kit/core':
         specifier: ^6.3.1
@@ -262,7 +262,7 @@ importers:
     devDependencies:
       '@propos/config':
         specifier: workspace:*
-        version: link:../../packages/config
+        version: link:../packages/config
       '@tailwindcss/postcss':
         specifier: ^4.1.8
         version: 4.3.1

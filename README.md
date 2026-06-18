@@ -2,34 +2,41 @@
 
 Enterprise-grade multi-tenant SaaS for Indian real estate developers.
 
-## Quick Start
+## Project structure
 
-Backend and frontend run as **separate apps** with their own environment files.
+```
+frontend/    → Next.js 15 web app (REST + WebSocket client)
+backend/     → NestJS 11 API (Prisma + PostgreSQL + Redis)
+apps/mobile  → Expo React Native
+packages/    → shared-types & shared-utils (backend + mobile)
+```
+
+## Quick Start
 
 ```bash
 pnpm install
-cp apps/api/.env.example apps/api/.env
-cp apps/web/.env.example apps/web/.env.local
+cp backend/.env.example backend/.env
+cp frontend/.env.example frontend/.env.local
 docker compose -f infrastructure/docker/docker-compose.yml up -d
 pnpm db:generate
 pnpm db:push
-pnpm --filter @propos/api db:seed
+pnpm --filter @propos/backend db:seed
 ```
 
 Run in two terminals (or use `pnpm dev` to start both):
 
 ```bash
-pnpm dev:api   # http://localhost:3001/api/v1
-pnpm dev:web   # http://localhost:3000
+pnpm dev:backend   # http://localhost:3001/api/v1
+pnpm dev:frontend  # http://localhost:3000
 ```
 
 | Service | URL |
 |---------|-----|
-| Web | http://localhost:3000 |
-| API | http://localhost:3001/api/v1 |
+| Frontend | http://localhost:3000 |
+| Backend | http://localhost:3001/api/v1 |
 | Login | admin@demo.propos.in / Admin@123 |
 
-See `apps/api/README.md` and `apps/web/README.md` for standalone setup and Docker deployment.
+See `backend/README.md` and `frontend/README.md` for standalone setup and Docker deployment.
 
 Full stack with Docker (Postgres + Redis + API + Web):
 
@@ -85,17 +92,6 @@ Monorepo, NestJS, Next.js 15, Prisma (50+ models), Docker, JWT auth, RBAC guards
 - 6 LMS Reports (call log, site visits, digital, DA, etc.)
 - Tab Login IDs (role-based sidebar)
 - Support helpdesk (tickets + replies)
-
-## Architecture
-
-```
-apps/web     → Next.js 15 frontend (REST + WebSocket client only)
-apps/api     → NestJS 11 backend (Prisma + PostgreSQL + Redis)
-apps/mobile  → Expo React Native
-packages/    → shared-types & shared-utils (API + mobile only)
-```
-
-The web app has **no dependency** on shared packages — it can be deployed or extracted independently.
 
 ## API Modules
 
