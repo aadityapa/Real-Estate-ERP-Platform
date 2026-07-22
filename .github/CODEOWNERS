@@ -1,0 +1,15 @@
+# CODEOWNERS
+#
+# This file defines who is automatically requested for review when a pull
+# request touches matching paths. The last matching pattern takes precedence.
+#
+# Customize this file as the team grows: add path-specific owners for
+# backend/, frontend/, apps/mobile/, packages/, and infrastructure/ once
+# dedicated maintainers are assigned to each area, e.g.:
+#
+#   /backend/          @some-backend-owner
+#   /frontend/          @some-frontend-owner
+#   /apps/mobile/        @some-mobile-owner
+#   /infrastructure/      @some-infra-owner
+
+* @pawan
