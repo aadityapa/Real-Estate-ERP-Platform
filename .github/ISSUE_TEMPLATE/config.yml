@@ -1,5 +1,5 @@
 blank_issues_enabled: false
 contact_links:
   - name: Security vulnerability
-    url: mailto:security@karnex.in
+    url: https://github.com/aadityapa/Real-Estate-ERP-Platform/security/advisories/new
     about: Please report security vulnerabilities privately — see SECURITY.md. Do not open a public issue.

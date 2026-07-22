@@ -17,7 +17,7 @@ If you believe you have found a security vulnerability in this repository or
 in any deployed PropOS service, please report it privately — **do not** open
 a public GitHub issue.
 
-Email **security@karnex.in** with:
+Report via [GitHub Security Advisories](https://github.com/aadityapa/Real-Estate-ERP-Platform/security/advisories/new) with:
 
 - A description of the vulnerability and its potential impact.
 - Steps to reproduce (proof-of-concept code, requests, or scripts are

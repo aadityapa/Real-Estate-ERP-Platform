@@ -34,8 +34,8 @@ benefit.
 
 These are additive-only and carry no risk to existing code or configuration:
 
-1. **`LICENSE`** — added at the repo root (MIT, Karnex) so the project has a
-   clear, standard open-source license, which was previously missing.
+1. **`LICENSE`** — added at the repo root (proprietary, Nexovo Tech Services Private Limited) so the project has a
+   clear license, which was previously missing.
 2. **Documentation index** — added `ARCHITECTURE.md`, `CONTRIBUTING.md`,
    `SECURITY.md`, `CODE_OF_CONDUCT.md` at the root, plus `.github/` templates
    (issue templates, PR template, `CODEOWNERS`) and a CI workflow
