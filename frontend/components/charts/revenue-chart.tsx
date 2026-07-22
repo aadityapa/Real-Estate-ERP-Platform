@@ -22,21 +22,38 @@ const data = [
 export function RevenueChart(): React.ReactElement {
   return (
     <ResponsiveContainer width="100%" height={280}>
-      <BarChart data={data}>
-        <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-        <XAxis dataKey="month" stroke="#64748b" fontSize={12} />
-        <YAxis
-          stroke="#64748b"
+      <BarChart data={data} margin={{ top: 8, right: 8, left: -8, bottom: 0 }}>
+        <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
+        <XAxis
+          dataKey="month"
+          stroke="var(--muted-foreground)"
           fontSize={12}
+          tickLine={false}
+          axisLine={{ stroke: "var(--border)" }}
+        />
+        <YAxis
+          stroke="var(--muted-foreground)"
+          fontSize={12}
+          tickLine={false}
+          axisLine={false}
           tickFormatter={(v: number) => `₹${(v / 100000).toFixed(0)}L`}
         />
         <Tooltip
+          cursor={{ fill: "var(--muted)", opacity: 0.5 }}
+          contentStyle={{
+            background: "var(--surface-elevated)",
+            border: "1px solid var(--border)",
+            borderRadius: "0.5rem",
+            color: "var(--foreground)",
+            fontSize: "0.8125rem",
+          }}
+          labelStyle={{ color: "var(--muted-foreground)" }}
           formatter={(value: number) => [
             `₹${value.toLocaleString("en-IN")}`,
             "Revenue",
           ]}
         />
-        <Bar dataKey="revenue" fill="#f59e0b" radius={[4, 4, 0, 0]} />
+        <Bar dataKey="revenue" fill="var(--accent)" radius={[6, 6, 0, 0]} maxBarSize={48} />
       </BarChart>
     </ResponsiveContainer>
   );
