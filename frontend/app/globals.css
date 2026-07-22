@@ -1,16 +1,104 @@
 @import "tailwindcss";
 
+/* Class-based dark mode (Tailwind v4). Toggle by adding `.dark` on <html>. */
+@custom-variant dark (&:where(.dark, .dark *));
+
 @theme {
-  --color-primary: #0f172a;
-  --color-accent: #f59e0b;
-  --color-success: #10b981;
-  --color-danger: #ef4444;
-  --color-warning: #f97316;
-  --color-background: #f8fafc;
-  --color-card: #ffffff;
-  --color-border: #e2e8f0;
   --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
   --font-mono: "JetBrains Mono", ui-monospace, monospace;
+
+  --radius-sm: 0.375rem;
+  --radius-md: 0.5rem;
+  --radius-lg: 0.75rem;
+  --radius-xl: 1rem;
+  --radius-2xl: 1.25rem;
+
+  --ease-emphasized: cubic-bezier(0.2, 0, 0, 1);
+  --ease-standard: cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/*
+ * `inline` is required so these utilities emit `var(--token)` references that
+ * respond to the `.dark` class at runtime, instead of being resolved at build.
+ */
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-surface: var(--surface);
+  --color-surface-elevated: var(--surface-elevated);
+  --color-card: var(--card);
+  --color-border: var(--border);
+  --color-border-strong: var(--border-strong);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary-hover: var(--primary-hover);
+  --color-accent: var(--accent);
+  --color-accent-hover: var(--accent-hover);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-success: var(--success);
+  --color-success-subtle: var(--success-subtle);
+  --color-warning: var(--warning);
+  --color-warning-subtle: var(--warning-subtle);
+  --color-danger: var(--danger);
+  --color-danger-subtle: var(--danger-subtle);
+  --color-info: var(--info);
+  --color-info-subtle: var(--info-subtle);
+}
+
+:root {
+  --background: #f8fafc;
+  --foreground: #0f172a;
+  --surface: #ffffff;
+  --surface-elevated: #ffffff;
+  --card: #ffffff;
+  --border: #e2e8f0;
+  --border-strong: #cbd5e1;
+  --muted: #f1f5f9;
+  --muted-foreground: #64748b;
+  --primary: #0f172a;
+  --primary-foreground: #ffffff;
+  --primary-hover: #1e293b;
+  --accent: #f59e0b;
+  --accent-hover: #d97706;
+  --accent-foreground: #ffffff;
+  --success: #059669;
+  --success-subtle: #ecfdf5;
+  --warning: #ea580c;
+  --warning-subtle: #fff7ed;
+  --danger: #dc2626;
+  --danger-subtle: #fef2f2;
+  --info: #2563eb;
+  --info-subtle: #eff6ff;
+  color-scheme: light;
+}
+
+.dark {
+  --background: #0b1120;
+  --foreground: #e2e8f0;
+  --surface: #0f172a;
+  --surface-elevated: #1e293b;
+  --card: #0f172a;
+  --border: #1e293b;
+  --border-strong: #334155;
+  --muted: #1e293b;
+  --muted-foreground: #94a3b8;
+  --primary: #334155;
+  --primary-foreground: #f8fafc;
+  --primary-hover: #475569;
+  --accent: #f59e0b;
+  --accent-hover: #fbbf24;
+  --accent-foreground: #0b1120;
+  --success: #34d399;
+  --success-subtle: #064e3b;
+  --warning: #fb923c;
+  --warning-subtle: #431407;
+  --danger: #f87171;
+  --danger-subtle: #450a0a;
+  --info: #60a5fa;
+  --info-subtle: #172554;
+  color-scheme: dark;
 }
 
 @layer base {
@@ -19,21 +107,33 @@
   }
 
   body {
-    @apply bg-background text-slate-900 font-sans antialiased;
+    @apply bg-background text-foreground font-sans antialiased;
   }
 
-  /* Visible keyboard focus everywhere (a11y) */
+  .text-display {
+    font-size: clamp(1.875rem, 1.4rem + 2vw, 2.75rem);
+    line-height: 1.1;
+    letter-spacing: -0.02em;
+    font-weight: 700;
+  }
+
   :focus-visible {
-    outline: 2px solid var(--color-accent);
+    outline: 2px solid var(--accent);
     outline-offset: 2px;
   }
 
   ::selection {
-    background-color: var(--color-accent);
-    color: #ffffff;
+    background-color: var(--accent);
+    color: var(--accent-foreground);
   }
 
-  /* Respect users who prefer reduced motion */
+  @supports (scrollbar-width: thin) {
+    * {
+      scrollbar-width: thin;
+      scrollbar-color: var(--border-strong) transparent;
+    }
+  }
+
   @media (prefers-reduced-motion: reduce) {
     *,
     *::before,
@@ -43,5 +143,42 @@
       transition-duration: 0.01ms !important;
       scroll-behavior: auto !important;
     }
+  }
+}
+
+@layer utilities {
+  @keyframes propos-shimmer {
+    100% {
+      transform: translateX(100%);
+    }
+  }
+
+  .animate-shimmer::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    transform: translateX(-100%);
+    background: linear-gradient(
+      90deg,
+      transparent,
+      color-mix(in srgb, var(--foreground) 8%, transparent),
+      transparent
+    );
+    animation: propos-shimmer 1.6s infinite;
+  }
+
+  @keyframes propos-rise {
+    from {
+      opacity: 0;
+      transform: translateY(8px);
+    }
+    to {
+      opacity: 1;
+      transform: none;
+    }
+  }
+
+  .animate-rise {
+    animation: propos-rise 0.4s var(--ease-emphasized) both;
   }
 }

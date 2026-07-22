@@ -21,12 +21,14 @@ export function DashboardShell({
       <Sidebar />
       <Topbar title={title} />
       <main
+        id="main-content"
         className={cn(
           "min-h-screen pt-16 transition-all duration-300",
-          collapsed ? "pl-[72px]" : "pl-[260px]",
+          "pl-0",
+          collapsed ? "lg:pl-[72px]" : "lg:pl-[260px]",
         )}
       >
-        <div className="p-6">{children}</div>
+        <div className="p-4 sm:p-6">{children}</div>
       </main>
     </div>
   );
