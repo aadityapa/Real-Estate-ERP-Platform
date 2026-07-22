@@ -7,7 +7,8 @@ import { ThrottlerModule, ThrottlerGuard } from "@nestjs/throttler";
 import { join } from "path";
 import { DatabaseModule } from "./database/database.module";
 import { PdfModule } from "./common/services/pdf.module";
-import { AuthModule } from "./modules/auth/auth.module";import { CrmModule } from "./modules/crm/crm.module";
+import { AuthModule } from "./modules/auth/auth.module";
+import { CrmModule } from "./modules/crm/crm.module";
 import { SalesModule } from "./modules/sales/sales.module";
 import { AdminModule } from "./modules/admin/admin.module";
 import { HrModule } from "./modules/hr/hr.module";
@@ -26,7 +27,8 @@ import { NotificationsModule } from "./modules/notifications/notifications.modul
 import { EventsModule } from "./modules/events/events.module";
 import { LmsModule } from "./modules/lms/lms.module";
 import { SupportModule } from "./modules/support/support.module";
-import { GraphqlFeatureModule } from "./graphql/graphql.module";import { JwtAuthGuard } from "./common/guards/jwt-auth.guard";
+import { GraphqlFeatureModule } from "./graphql/graphql.module";
+import { JwtAuthGuard } from "./common/guards/jwt-auth.guard";
 import { TenantGuard } from "./common/guards/tenant.guard";
 import { PermissionsGuard } from "./common/guards/permissions.guard";
 import { GlobalExceptionFilter } from "./common/filters/global-exception.filter";
@@ -40,16 +42,22 @@ import { TransformInterceptor } from "./common/interceptors/transform.intercepto
       autoSchemaFile: join(process.cwd(), "src/graphql/schema.gql"),
       sortSchema: true,
       path: "/graphql",
+      // Never expose schema introspection or the sandbox in production
+      introspection: process.env["NODE_ENV"] !== "production",
+      playground: false,
       context: ({ req }: { req: { headers: Record<string, string | string[] | undefined>; user?: unknown } }) => ({ req }),
     }),
     ThrottlerModule.forRoot([
+      // Global default: 100 req/min per IP. Auth endpoints get a stricter
+      // override via @Throttle in the auth controller.
       { name: "short", ttl: 60000, limit: 100 },
     ]),
     DatabaseModule,
     PdfModule,
     EventsModule,
     GraphqlFeatureModule,
-    AuthModule,    CrmModule,
+    AuthModule,
+    CrmModule,
     SalesModule,
     AdminModule,
     HrModule,

@@ -1,3 +1,5 @@
+"use client";
+
 import { ReportPage } from "@/components/lms/report-page";
 
 export default function DaReportPage(): React.ReactElement {

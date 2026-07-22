@@ -68,7 +68,7 @@ export class PaymentsService {
         },
       });
 
-      const pdfUrl = await this.pdfService.generateReceipt({
+      const pdf = await this.pdfService.generateReceipt({
         receiptNumber,
         bookingNumber: payment.booking.bookingNumber,
         buyerName: `${payment.booking.customer.firstName} ${payment.booking.customer.lastName}`,
@@ -81,7 +81,7 @@ export class PaymentsService {
 
       await tx.receipt.update({
         where: { id: receipt.id },
-        data: { pdfUrl },
+        data: { pdfUrl: pdf.url, checksum: pdf.checksum },
       });
 
       const newPaidAmount = Number(payment.paidAmount) + paidAmount;
@@ -103,7 +103,7 @@ export class PaymentsService {
         include: { receipt: true },
       });
 
-      return { payment: updatedPayment, receipt: { ...receipt, pdfUrl } };
+      return { payment: updatedPayment, receipt: { ...receipt, pdfUrl: pdf.url, checksum: pdf.checksum } };
     });
 
     this.eventsService.emitPaymentReceived(tenantId, {

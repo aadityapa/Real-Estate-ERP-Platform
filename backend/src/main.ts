@@ -1,12 +1,25 @@
 import { NestFactory } from "@nestjs/core";
 import { ValidationPipe } from "@nestjs/common";
 import { NestExpressApplication } from "@nestjs/platform-express";
+import type { Request, Response, NextFunction } from "express";
+import helmet from "helmet";
 import { join } from "path";
 import { AppModule } from "./app.module";
 import { getCorsOrigins } from "./common/config/cors";
+import { verifyStoragePath } from "./common/utils/crypto";
 
 async function bootstrap(): Promise<void> {
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
+
+  // Security headers (CSP relaxed so the GraphQL sandbox works in dev)
+  app.use(
+    helmet({
+      contentSecurityPolicy:
+        process.env["NODE_ENV"] === "production" ? undefined : false,
+      crossOriginResourcePolicy: { policy: "cross-origin" },
+    }),
+  );
+  app.getHttpAdapter().getInstance().disable("x-powered-by");
 
   app.setGlobalPrefix("api/v1");
   app.enableCors({
@@ -14,6 +27,20 @@ async function bootstrap(): Promise<void> {
     credentials: true,
   });
 
+  // /storage files (agreements, receipts) require a valid HMAC-SHA256
+  // signed URL — the API signs storage paths in its responses.
+  app.use("/storage", (req: Request, res: Response, next: NextFunction) => {
+    const { exp, sig } = req.query as { exp?: string; sig?: string };
+    const path = `/storage${req.path}`;
+    if (!verifyStoragePath(path, exp, sig)) {
+      res.status(403).json({
+        success: false,
+        error: { code: "FORBIDDEN", message: "Invalid or expired file link" },
+      });
+      return;
+    }
+    next();
+  });
   app.useStaticAssets(join(process.cwd(), "storage"), { prefix: "/storage" });
 
   app.useGlobalPipes(

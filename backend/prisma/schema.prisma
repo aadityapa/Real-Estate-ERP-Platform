@@ -736,6 +736,7 @@ model Receipt {
   reference     String?
   date          DateTime
   pdfUrl        String?
+  checksum      String? // SHA-256 of the generated PDF — integrity verification
   createdAt     DateTime    @default(now())
 
   booking  Booking   @relation(fields: [bookingId], references: [id])
@@ -752,6 +753,7 @@ model Agreement {
   stampDuty        Decimal?
   registrationFee  Decimal?
   documentUrl      String?
+  documentChecksum String? // SHA-256 of the generated PDF — integrity verification
   status           AgreementStatus @default(DRAFT)
   createdAt        DateTime        @default(now())
 
@@ -1087,6 +1089,7 @@ model Document {
   fileUrl        String
   fileSize       Int?
   mimeType       String?
+  checksum       String? // SHA-256 of the file — integrity verification
   version        Int              @default(1)
   tags           String[]
   ocrText        String?
@@ -1107,6 +1110,7 @@ model DocumentVersion {
   documentId String
   version    Int
   fileUrl    String
+  checksum   String? // SHA-256 of the file — integrity verification
   changes    String?
   uploadedBy String
   createdAt  DateTime @default(now())

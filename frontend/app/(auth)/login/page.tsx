@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { Eye, EyeOff } from "lucide-react";
 import { useAuthStore } from "@/stores/auth-store";
 import { api } from "@/lib/api";
 import { Button } from "@/components/ui/button";
@@ -11,8 +12,9 @@ import { APP_NAME } from "@/lib/constants";
 export default function LoginPage(): React.ReactElement {
   const router = useRouter();
   const setAuth = useAuthStore((s) => s.setAuth);
-  const [email, setEmail] = useState("admin@demo.propos.in");
-  const [password, setPassword] = useState("Admin@123");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
@@ -59,9 +61,12 @@ export default function LoginPage(): React.ReactElement {
           <p className="text-sm text-slate-500">Sign in to your account</p>
         </CardHeader>
         <CardContent>
-          <form onSubmit={handleSubmit} className="space-y-4">
+          <form onSubmit={handleSubmit} className="space-y-4" noValidate>
             {error && (
-              <div className="rounded-lg bg-red-50 p-3 text-sm text-danger">
+              <div
+                role="alert"
+                className="rounded-lg border border-red-100 bg-red-50 p-3 text-sm text-danger"
+              >
                 {error}
               </div>
             )}
@@ -74,6 +79,9 @@ export default function LoginPage(): React.ReactElement {
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
+                autoComplete="email"
+                autoFocus
+                placeholder="you@company.com"
                 className="w-full rounded-lg border border-border px-3 py-2 text-sm outline-none focus:border-accent focus:ring-1 focus:ring-accent"
                 required
               />
@@ -82,20 +90,36 @@ export default function LoginPage(): React.ReactElement {
               <label htmlFor="password" className="text-sm font-medium">
                 Password
               </label>
-              <input
-                id="password"
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="w-full rounded-lg border border-border px-3 py-2 text-sm outline-none focus:border-accent focus:ring-1 focus:ring-accent"
-                required
-              />
+              <div className="relative">
+                <input
+                  id="password"
+                  type={showPassword ? "text" : "password"}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  autoComplete="current-password"
+                  placeholder="••••••••"
+                  className="w-full rounded-lg border border-border px-3 py-2 pr-10 text-sm outline-none focus:border-accent focus:ring-1 focus:ring-accent"
+                  required
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword((v) => !v)}
+                  aria-label={showPassword ? "Hide password" : "Show password"}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 rounded p-1 text-slate-400 hover:text-slate-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+                >
+                  {showPassword ? (
+                    <EyeOff className="h-4 w-4" aria-hidden />
+                  ) : (
+                    <Eye className="h-4 w-4" aria-hidden />
+                  )}
+                </button>
+              </div>
             </div>
             <Button
               type="submit"
               variant="accent"
               className="w-full"
-              disabled={loading}
+              disabled={loading || !email || !password}
             >
               {loading ? "Signing in..." : "Sign In"}
             </Button>

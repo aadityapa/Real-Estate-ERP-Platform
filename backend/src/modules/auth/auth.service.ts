@@ -2,6 +2,7 @@ import { Injectable, UnauthorizedException, Logger } from "@nestjs/common";
 import { JwtService, JwtSignOptions } from "@nestjs/jwt";
 import { ConfigService } from "@nestjs/config";
 import * as bcrypt from "bcrypt";
+import { sha256Hex } from "../../common/utils/crypto";
 import { PrismaService } from "../../database/prisma.service";
 import { TabLoginsService } from "../admin/tab-logins/tab-logins.service";
 import { LoginDto, RegisterDto } from "./dto/auth.dto";
@@ -130,8 +131,9 @@ export class AuthService {
   }
 
   async refreshToken(refreshToken: string): Promise<AuthTokens> {
+    // Sessions store SHA-256 hashes of tokens — never raw tokens.
     const session = await this.prisma.session.findUnique({
-      where: { refreshToken },
+      where: { refreshToken: sha256Hex(refreshToken) },
       include: { user: true },
     });
 
@@ -147,7 +149,7 @@ export class AuthService {
 
   async logout(userId: string, token: string): Promise<void> {
     await this.prisma.session.deleteMany({
-      where: { userId, token },
+      where: { userId, token: sha256Hex(token) },
     });
   }
 
@@ -213,11 +215,12 @@ export class AuthService {
     const expiresAt = new Date();
     expiresAt.setDate(expiresAt.getDate() + 30);
 
+    // Store SHA-256 hashes only — a DB leak must not expose usable tokens.
     await this.prisma.session.create({
       data: {
         userId,
-        token: accessToken,
-        refreshToken,
+        token: sha256Hex(accessToken),
+        refreshToken: sha256Hex(refreshToken),
         expiresAt,
       },
     });

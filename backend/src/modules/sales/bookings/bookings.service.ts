@@ -248,7 +248,7 @@ export class BookingsService {
     const companyName =
       booking.unit.project.company?.name ?? "PropOS Developer";
 
-    const pdfUrl = await this.pdfService.generateAgreement({
+    const pdf = await this.pdfService.generateAgreement({
       agreementNumber,
       bookingNumber: booking.bookingNumber,
       buyerName: `${booking.customer.firstName} ${booking.customer.lastName}`,
@@ -270,7 +270,8 @@ export class BookingsService {
           type: dto.type,
           stampDuty: dto.stampDuty,
           registrationFee: dto.registrationFee,
-          documentUrl: pdfUrl,
+          documentUrl: pdf.url,
+          documentChecksum: pdf.checksum,
           status: "SENT",
           executedDate: new Date(),
         },

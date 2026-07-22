@@ -1,5 +1,5 @@
 import { Type } from "class-transformer";
-import { IsArray, IsBoolean, IsDateString, IsEnum, IsInt, IsNotEmpty, IsOptional, IsString } from "class-validator";
+import { IsArray, IsBoolean, IsDateString, IsEnum, IsInt, IsNotEmpty, IsOptional, IsString, Matches } from "class-validator";
 import { PaginationDto } from "../../../../common/dto/pagination.dto";
 
 export enum DocumentCategoryDto {
@@ -15,6 +15,8 @@ export class CreateDocumentDto {
   @IsString() @IsNotEmpty() fileUrl!: string;
   @IsOptional() @Type(() => Number) @IsInt() fileSize?: number;
   @IsOptional() @IsString() mimeType?: string;
+  /** SHA-256 hex checksum of the file, computed at upload time */
+  @IsOptional() @Matches(/^[a-f0-9]{64}$/i, { message: "checksum must be a SHA-256 hex digest" }) checksum?: string;
   @IsOptional() @IsArray() @IsString({ each: true }) tags?: string[];
   @IsOptional() @IsBoolean() isConfidential?: boolean;
   @IsString() @IsNotEmpty() uploadedBy!: string;

@@ -1,3 +1,5 @@
+"use client";
+
 import { ReportPage } from "@/components/lms/report-page";
 import { LeadLabelBadge } from "@/components/lms/lead-badges";
 

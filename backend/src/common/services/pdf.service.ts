@@ -1,7 +1,17 @@
 import PDFDocument from "pdfkit";
 import { Injectable, Logger } from "@nestjs/common";
-import { createWriteStream, existsSync, mkdirSync } from "fs";
+import { createWriteStream, existsSync, mkdirSync, statSync } from "fs";
 import { join } from "path";
+import { sha256File } from "../utils/crypto";
+
+export interface GeneratedPdf {
+  /** Public storage path, e.g. /storage/receipts/receipt-RCP-1.pdf */
+  url: string;
+  /** SHA-256 hex checksum of the generated file — for integrity verification */
+  checksum: string;
+  /** File size in bytes */
+  fileSize: number;
+}
 
 export interface AgreementPdfData {
   agreementNumber: string;
@@ -40,7 +50,13 @@ export class PdfService {
     }
   }
 
-  async generateAgreement(data: AgreementPdfData): Promise<string> {
+  private async finalize(filepath: string, url: string): Promise<GeneratedPdf> {
+    const checksum = await sha256File(filepath);
+    const fileSize = statSync(filepath).size;
+    return { url, checksum, fileSize };
+  }
+
+  async generateAgreement(data: AgreementPdfData): Promise<GeneratedPdf> {
     const filename = `agreement-${data.agreementNumber}.pdf`;
     const filepath = join(this.storageDir, "agreements", filename);
 
@@ -91,10 +107,10 @@ export class PdfService {
     });
 
     this.logger.log(`Agreement PDF generated: ${filename}`);
-    return `/storage/agreements/${filename}`;
+    return this.finalize(filepath, `/storage/agreements/${filename}`);
   }
 
-  async generateReceipt(data: ReceiptPdfData): Promise<string> {
+  async generateReceipt(data: ReceiptPdfData): Promise<GeneratedPdf> {
     const filename = `receipt-${data.receiptNumber}.pdf`;
     const filepath = join(this.storageDir, "receipts", filename);
 
@@ -130,6 +146,7 @@ export class PdfService {
       stream.on("error", reject);
     });
 
-    return `/storage/receipts/${filename}`;
+    this.logger.log(`Receipt PDF generated: ${filename}`);
+    return this.finalize(filepath, `/storage/receipts/${filename}`);
   }
 }
