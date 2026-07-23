@@ -16,6 +16,10 @@ import { initSentry } from "./common/observability/sentry";
 import { shutdownTracing } from "./common/observability/tracing";
 import { verifyStoragePath } from "./common/utils/crypto";
 import { assertProductionSecretsConfigured } from "./modules/auth/production-secrets";
+import {
+  assertProductionResidencyConfigured,
+  assertStorageRegionAllowed,
+} from "./common/residency/data-residency";
 
 /** Explicit JSON/urlencoded ceiling (metadata APIs; uploads are not multipart here). */
 const BODY_LIMIT = "1mb";
@@ -29,6 +33,8 @@ async function bootstrap(): Promise<void> {
     STORAGE_URL_SECRET: process.env["STORAGE_URL_SECRET"],
     PII_ENCRYPTION_KEY: process.env["PII_ENCRYPTION_KEY"],
   });
+  assertProductionResidencyConfigured(process.env);
+  assertStorageRegionAllowed(process.env);
 
   initSentry();
 

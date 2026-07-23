@@ -26,6 +26,8 @@ export const DIRECT_TENANT_MODELS = [
   "HelpdeskTicket",
   "DaReport",
   "Customer",
+  "CustomerConsent",
+  "DataSubjectRequest",
   "Vendor",
   "LedgerEntry",
   "GSTInvoice",
@@ -57,6 +59,7 @@ export const DIRECT_TENANT_MODEL_SET: ReadonlySet<string> = new Set(
 export const GLOBAL_MODELS = [
   "Tenant",
   "Permission",
+  "ConsentPurpose",
   "GatewayWebhookEvent",
 ] as const;
 

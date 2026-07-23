@@ -27,6 +27,7 @@
 | **5.2 Subscription billing & plan limits** | Done | Plan entitlements (seats/projects/storage/RPM/features) + SaaS `Subscription`/`SaasInvoice` (paise); Razorpay Subscriptions gateway; `/billing/*` + webhook dunning/trial/proration; `FeatureFlagsGuard`; seat/project enforcement with `PLAN_LIMIT_EXCEEDED`; MRR/churn analytics events; frontend spec `docs/BILLING_ADMIN_PAGE.md` + `docs/BILLING.md`. Migration: `20260723200000_saas_subscription_billing` (`prisma migrate deploy` when DB up). |
 | **6.1 GST e-invoicing & TDS** | Done | `GSTInvoice` (paise, HSN/SAC, CGST/SGST/IGST by place-of-supply, statutory numbering) + mock IRP (`GstIrpProvider` / `MockIrpAdapter`) storing IRN+signed QR; `TdsEntry` + quarterly return export; GSTR-1 sales register; SaaS invoice → GST link when `PROPOS_SUPPLIER_GSTIN` set. Docs: `docs/GST_EINVOICING.md`. Migration: `20260723210000_gst_einvoice_tds` (`prisma migrate deploy` when DB up). |
 | **6.2 RERA, agreements & e-sign** | Done | `ReraProjectProfile` + `ReraPaymentStage` (bps caps; rule engine in `rera-rules.ts`); template-driven allotment/ATS PDF → document vault versioning; pluggable `ESignProvider` (mock Digio default; webhook → audit). Docs: `docs/RERA_AGREEMENTS_ESIGN.md`. Migration: `20260723220000_rera_agreements_esign` (`prisma migrate deploy` when DB up). |
+| **6.3 DPDP Act 2023 / data residency** | Done | `ConsentPurpose` + `CustomerConsent` + `DataSubjectRequest`; customer export/correct/erase under `/privacy/*`; residency guards (`DATA_RESIDENCY_REGION`/`AWS_REGION` → `ap-south-1`); docs `docs/DPDP_COMPLIANCE.md`. Migration: `20260723230000_dpdp_consent_residency` (`prisma migrate deploy` when DB up). |
 | Next.js bump | Done | 15.5.21 |
 | P0 Customer tenancy / LMS / RBAC / DTOs | Done | See prior commit |
 
@@ -37,12 +38,12 @@ pnpm --filter @propos/frontend test
 pnpm --filter @propos/backend test:cov
 pnpm --filter @propos/backend exec jest --testPathPattern=auth
 pnpm --filter @propos/backend exec jest --testPathPattern=permissions
-pnpm --filter @propos/backend exec jest --testPathPattern="exception|upload-safety|redact|cors|request-id|pii-crypto|audit|production-secrets|tenant|limits|plan-defaults|pino|metrics|tracing|sentry|retention|storage-keys|tenant-delete|storage-purger|gateway|razorpay|money|billing|tax-compute|gst-invoice|tds.service|mock-irp|rera-rules|mock-esign|agreements.service"
+pnpm --filter @propos/backend exec jest --testPathPattern="exception|upload-safety|redact|cors|request-id|pii-crypto|audit|production-secrets|tenant|limits|plan-defaults|pino|metrics|tracing|sentry|retention|storage-keys|tenant-delete|storage-purger|gateway|razorpay|money|billing|tax-compute|gst-invoice|tds.service|mock-irp|rera-rules|mock-esign|agreements.service|data-residency|privacy.service"
 pnpm test:e2e   # requires docker-compose.full.yml on :3000/:3001
 node scripts/check-prisma-migration.cjs
 # DR (needs Postgres client or compose postgres):
 #   ./scripts/backup.sh && ./scripts/verify-restore.sh backups/propos-*.dump
-# Razorpay / SaaS billing / GST / RERA migrations (when Postgres up):
+# Razorpay / SaaS billing / GST / RERA / DPDP migrations (when Postgres up):
 #   pnpm --filter @propos/backend exec prisma migrate deploy
 ```
 
@@ -50,4 +51,4 @@ Branch protection: `docs/CI_BRANCH_PROTECTION.md`
 
 ## Remaining (playbook order)
 
-- **6.3–11** DPDP, perf, IaC/CD, SSO, mobile, go-live  
+- **7.1–11** Perf, IaC/CD, SSO, mobile, go-live  

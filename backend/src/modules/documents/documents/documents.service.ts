@@ -9,6 +9,7 @@ import {
   sanitizeUploadFilename,
 } from "../../../common/utils/upload-safety";
 import { TenantUsageService } from "../../../common/limits/tenant-usage.service";
+import { assertStorageUrlRegionAllowed } from "../../../common/residency/data-residency";
 import { CreateDocumentDto, FilterDocumentDto, UpdateDocumentDto } from "./dto/document.dto";
 
 @Injectable()
@@ -42,6 +43,7 @@ export class DocumentsService {
   async create(tenantId: string, dto: CreateDocumentDto) {
     assertAllowedMimeType(dto.mimeType);
     assertUploadSize(dto.fileSize);
+    assertStorageUrlRegionAllowed(dto.fileUrl);
     await this.usage.assertStorageAvailable(tenantId, dto.fileSize ?? 0);
     const name = sanitizeUploadFilename(dto.name);
     return this.prisma.document.create({
@@ -57,6 +59,7 @@ export class DocumentsService {
 
   async update(tenantId: string, id: string, dto: UpdateDocumentDto) {
     await this.findOne(tenantId, id);
+    if (dto.fileUrl) assertStorageUrlRegionAllowed(dto.fileUrl);
     const name = dto.name != null ? sanitizeUploadFilename(dto.name) : undefined;
     return this.prisma.document.update({
       where: { id },

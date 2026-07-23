@@ -149,4 +149,5 @@ pnpm --filter @propos/backend exec prisma migrate deploy
 - Health probes: Phase 4.2 (`/health/live`, `/health/ready`)
 - Observability: `docs/OBSERVABILITY.md`
 - Tenant isolation: `docs/TENANT_ISOLATION.md`
-- Individual data-subject rights (beyond tenant-level): Phase 6.3 DPDP
+- Individual data-subject rights (beyond tenant-level): Phase 6.3 DPDP —
+  see `docs/DPDP_COMPLIANCE.md` (`/privacy/customers/:id/*`)

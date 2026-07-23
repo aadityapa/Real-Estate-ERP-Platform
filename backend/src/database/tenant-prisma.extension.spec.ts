@@ -66,6 +66,7 @@ describe("tenant model classification", () => {
     expect(GLOBAL_MODELS).toEqual([
       "Tenant",
       "Permission",
+      "ConsentPurpose",
       "GatewayWebhookEvent",
     ]);
   });

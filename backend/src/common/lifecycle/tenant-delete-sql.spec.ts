@@ -24,6 +24,16 @@ describe("tenant-delete-sql", () => {
     );
   });
 
+  it("deletes customer consents before customers", () => {
+    const labels = tenantDeleteLabels();
+    expect(labels.indexOf("customer_consents")).toBeLessThan(
+      labels.indexOf("customers"),
+    );
+    expect(labels.indexOf("data_subject_requests")).toBeLessThan(
+      labels.indexOf("customers"),
+    );
+  });
+
   it("parameterizes every step with $1", () => {
     for (const step of TENANT_DELETE_STEPS) {
       expect(step.sql).toContain("$1");

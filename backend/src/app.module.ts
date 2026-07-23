@@ -26,6 +26,7 @@ import { MarketingModule } from "./modules/marketing/marketing.module";
 import { ChannelPartnersModule } from "./modules/channel-partners/channel-partners.module";
 import { AiModule } from "./modules/ai/ai.module";
 import { CustomersModule } from "./modules/customers/customers.module";
+import { PrivacyModule } from "./modules/privacy/privacy.module";
 import { NotificationsModule } from "./modules/notifications/notifications.module";
 import { EventsModule } from "./modules/events/events.module";
 import { LmsModule } from "./modules/lms/lms.module";
@@ -87,6 +88,7 @@ import { BillingModule } from "./modules/billing/billing.module";
     ChannelPartnersModule,
     AiModule,
     CustomersModule,
+    PrivacyModule,
     NotificationsModule,
     LmsModule,
     SupportModule,

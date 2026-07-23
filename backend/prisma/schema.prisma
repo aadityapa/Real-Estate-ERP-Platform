@@ -45,6 +45,8 @@ model Tenant {
   reraPaymentStages ReraPaymentStage[]
   agreementTemplates AgreementTemplate[]
   eSignRequests     ESignRequest[]
+  customerConsents  CustomerConsent[]
+  dataSubjectRequests DataSubjectRequest[]
 }
 
 /// Per-tenant limit overrides (null fields fall back to plan defaults). Basis for Phase 5 billing.
@@ -1041,17 +1043,87 @@ model Customer {
   documents      Json?
   portalAccess   Boolean  @default(false)
   portalPassword String?
+  /// Set when data-principal erasure completed (PII scrubbed; row retained for legal booking links).
+  erasedAt       DateTime?
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 
-  tenant     Tenant          @relation(fields: [tenantId], references: [id])
-  bookings   Booking[]
-  complaints Complaint[]
-  tickets    SupportTicket[]
+  tenant              Tenant               @relation(fields: [tenantId], references: [id])
+  bookings            Booking[]
+  complaints          Complaint[]
+  tickets             SupportTicket[]
+  consents            CustomerConsent[]
+  dataSubjectRequests DataSubjectRequest[]
 
   @@unique([tenantId, phone])
   @@index([tenantId])
   @@index([createdAt])
+  @@index([tenantId, erasedAt])
+}
+
+/// Global DPDP purpose catalog (not tenant-owned). Seeded by migration.
+model ConsentPurpose {
+  id          String   @id @default(cuid())
+  /// Stable API code (e.g. SERVICE_DELIVERY).
+  code        String   @unique
+  name        String
+  description String?
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  consents CustomerConsent[]
+}
+
+/// Per-customer consent grant/withdrawal for a purpose (data principal).
+model CustomerConsent {
+  id            String    @id @default(cuid())
+  tenantId      String
+  customerId    String
+  purposeId     String
+  /// true = granted; false = denied / withdrawn.
+  granted       Boolean
+  grantedAt     DateTime?
+  revokedAt     DateTime?
+  /// Capture channel: web | app | paper | phone | in_person.
+  channel       String?
+  /// Privacy notice / policy version shown at capture.
+  noticeVersion String?
+  /// Actor user id (no PII).
+  recordedBy    String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  tenant   Tenant         @relation(fields: [tenantId], references: [id])
+  customer Customer       @relation(fields: [customerId], references: [id])
+  purpose  ConsentPurpose @relation(fields: [purposeId], references: [id])
+
+  @@unique([tenantId, customerId, purposeId])
+  @@index([tenantId])
+  @@index([tenantId, customerId])
+  @@index([purposeId])
+}
+
+/// Audit trail for data-principal rights requests (access / correction / erasure).
+model DataSubjectRequest {
+  id          String                   @id @default(cuid())
+  tenantId    String
+  customerId  String
+  type        DataSubjectRequestType
+  status      DataSubjectRequestStatus @default(PENDING)
+  /// Internal ops note — never store name/phone/email here.
+  notes       String?
+  requestedBy String?
+  completedAt DateTime?
+  createdAt   DateTime                 @default(now())
+  updatedAt   DateTime                 @updatedAt
+
+  tenant   Tenant   @relation(fields: [tenantId], references: [id])
+  customer Customer @relation(fields: [customerId], references: [id])
+
+  @@index([tenantId])
+  @@index([tenantId, customerId])
+  @@index([tenantId, type, status])
 }
 
 model Complaint {
@@ -1737,6 +1809,18 @@ enum PlanType {
   STARTER
   GROWTH
   ENTERPRISE
+}
+
+enum DataSubjectRequestType {
+  ACCESS
+  CORRECTION
+  ERASURE
+}
+
+enum DataSubjectRequestStatus {
+  PENDING
+  COMPLETED
+  REJECTED
 }
 
 enum SubStatus {

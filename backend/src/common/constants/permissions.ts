@@ -20,6 +20,18 @@ export const Permissions = {
   /** DPDP / GDPR tenant hard-delete (right to erasure). */
   ADMIN_LIFECYCLE_DELETE: "admin:delete:tenant",
 
+  /** DPDP purpose registry + per-customer consent status. */
+  PRIVACY_CONSENT_READ: "privacy:read:consent",
+  PRIVACY_CONSENT_WRITE: "privacy:write:consent",
+  /** Data-principal access / export. */
+  PRIVACY_CUSTOMER_EXPORT: "privacy:export:customer",
+  /** Data-principal correction. */
+  PRIVACY_CUSTOMER_CORRECT: "privacy:correct:customer",
+  /** Data-principal erasure (individual, not tenant-wide). */
+  PRIVACY_CUSTOMER_ERASE: "privacy:erase:customer",
+  /** Data residency configuration status. */
+  PRIVACY_RESIDENCY_READ: "privacy:read:residency",
+
   FINANCE_LEDGER_READ: "finance:read:ledger",
   FINANCE_LEDGER_WRITE: "finance:write:ledger",
   FINANCE_BUDGET_READ: "finance:read:budget",

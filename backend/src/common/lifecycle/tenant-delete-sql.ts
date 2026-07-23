@@ -89,6 +89,14 @@ export const TENANT_DELETE_STEPS: readonly TenantDeleteStep[] = [
     sql: `DELETE FROM "ReraProjectProfile" WHERE "tenantId" = $1`,
   },
   {
+    label: "customer_consents",
+    sql: `DELETE FROM "CustomerConsent" WHERE "tenantId" = $1`,
+  },
+  {
+    label: "data_subject_requests",
+    sql: `DELETE FROM "DataSubjectRequest" WHERE "tenantId" = $1`,
+  },
+  {
     label: "complaints",
     sql: `DELETE FROM "Complaint" WHERE "customerId" IN (SELECT id FROM "Customer" WHERE "tenantId" = $1)`,
   },
