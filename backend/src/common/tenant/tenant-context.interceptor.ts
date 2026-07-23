@@ -7,6 +7,7 @@ import {
 import { GqlExecutionContext } from "@nestjs/graphql";
 import { Observable } from "rxjs";
 import type { JwtPayload } from "@propos/shared-types";
+import { setSentryTenantTag } from "../observability/sentry";
 import { runWithTenantStore } from "./tenant-context";
 
 type ReqWithUser = { user?: JwtPayload };
@@ -44,6 +45,7 @@ export class TenantContextInterceptor implements NestInterceptor {
 
     return new Observable((subscriber) => {
       runWithTenantStore({ tenantId, bypass: false }, () => {
+        setSentryTenantTag(tenantId);
         next.handle().subscribe({
           next: (value) => subscriber.next(value),
           error: (err) => subscriber.error(err),

@@ -8,6 +8,8 @@ import { join } from "path";
 import { DatabaseModule } from "./database/database.module";
 import { RedisModule } from "./common/redis/redis.module";
 import { PdfModule } from "./common/services/pdf.module";
+import { ObservabilityModule } from "./common/observability/observability.module";
+import { RequestLogContextInterceptor } from "./common/observability/request-log-context.interceptor";
 import { AuthModule } from "./modules/auth/auth.module";
 import { CrmModule } from "./modules/crm/crm.module";
 import { SalesModule } from "./modules/sales/sales.module";
@@ -43,6 +45,7 @@ import { TenantRateLimitGuard } from "./common/limits/tenant-rate-limit.guard";
 
 @Module({
   imports: [
+    ObservabilityModule,
     AuditModule,
     LimitsModule,
     ConfigModule.forRoot({ isGlobal: true }),
@@ -90,6 +93,7 @@ import { TenantRateLimitGuard } from "./common/limits/tenant-rate-limit.guard";
   providers: [
     { provide: APP_FILTER, useClass: GlobalExceptionFilter },
     { provide: APP_INTERCEPTOR, useClass: TransformInterceptor },
+    { provide: APP_INTERCEPTOR, useClass: RequestLogContextInterceptor },
     { provide: APP_INTERCEPTOR, useClass: TenantContextInterceptor },
     { provide: APP_INTERCEPTOR, useClass: AuditInterceptor },
     { provide: APP_GUARD, useClass: ThrottlerGuard },

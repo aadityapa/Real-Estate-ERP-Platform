@@ -5,7 +5,9 @@ import {
   OnModuleInit,
 } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
+import { trace, SpanStatusCode } from "@opentelemetry/api";
 import { Job, Queue, Worker, DelayedError, type ConnectionOptions } from "bullmq";
+import { isTracingEnabled } from "../observability/tracing";
 import { RedisService } from "../redis/redis.service";
 import { TenantLimitsService } from "./tenant-limits.service";
 
@@ -84,6 +86,31 @@ export class TenantQueueService implements OnModuleInit, OnModuleDestroy {
 
   isEnabled(): boolean {
     return this.queue != null;
+  }
+
+  /** Waiting / active / delayed / completed / failed counts for metrics. */
+  async getJobCounts(): Promise<{
+    waiting: number;
+    active: number;
+    delayed: number;
+    completed: number;
+    failed: number;
+  } | null> {
+    if (!this.queue) return null;
+    const counts = await this.queue.getJobCounts(
+      "waiting",
+      "active",
+      "delayed",
+      "completed",
+      "failed",
+    );
+    return {
+      waiting: counts["waiting"] ?? 0,
+      active: counts["active"] ?? 0,
+      delayed: counts["delayed"] ?? 0,
+      completed: counts["completed"] ?? 0,
+      failed: counts["failed"] ?? 0,
+    };
   }
 
   async enqueue(
@@ -173,20 +200,53 @@ export class TenantQueueService implements OnModuleInit, OnModuleDestroy {
   }
 
   private async processWithFairness(job: Job<TenantJobData>): Promise<void> {
-    const tenantId = job.data.tenantId;
-    const acquired = await this.tryAcquireSlot(tenantId);
-    if (!acquired) {
-      // Defer without failing — other tenants keep making progress.
-      await job.moveToDelayed(Date.now() + 500, job.token);
-      throw new DelayedError();
+    const run = async (): Promise<void> => {
+      const tenantId = job.data.tenantId;
+      const acquired = await this.tryAcquireSlot(tenantId);
+      if (!acquired) {
+        // Defer without failing — other tenants keep making progress.
+        await job.moveToDelayed(Date.now() + 500, job.token);
+        throw new DelayedError();
+      }
+      try {
+        this.logger.debug?.(
+          `Processed ${job.data.kind} for tenant ${tenantId}`,
+        );
+      } finally {
+        await this.releaseSlot(tenantId);
+      }
+    };
+
+    if (!isTracingEnabled()) {
+      await run();
+      return;
     }
-    try {
-      this.logger.debug?.(
-        `Processed ${job.data.kind} for tenant ${tenantId}`,
-      );
-    } finally {
-      await this.releaseSlot(tenantId);
-    }
+
+    const tracer = trace.getTracer("propos-bullmq");
+    await tracer.startActiveSpan(
+      `bullmq.process ${job.data.kind}`,
+      {
+        attributes: {
+          "messaging.system": "bullmq",
+          "messaging.destination": TENANT_JOBS_QUEUE,
+          "propos.tenant_id": job.data.tenantId,
+          "propos.job_kind": job.data.kind,
+        },
+      },
+      async (span) => {
+        try {
+          await run();
+        } catch (err) {
+          if (!(err instanceof DelayedError)) {
+            span.recordException(err as Error);
+            span.setStatus({ code: SpanStatusCode.ERROR });
+          }
+          throw err;
+        } finally {
+          span.end();
+        }
+      },
+    );
   }
 
   private activeKey(tenantId: string): string {

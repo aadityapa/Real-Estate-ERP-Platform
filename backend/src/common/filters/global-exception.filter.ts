@@ -8,6 +8,7 @@ import {
 } from "@nestjs/common";
 import type { Request, Response } from "express";
 import type { RequestWithId } from "../middleware/request-id.middleware";
+import { captureException } from "../observability/sentry";
 
 export interface ProblemErrorBody {
   success: false;
@@ -81,6 +82,10 @@ export class GlobalExceptionFilter implements ExceptionFilter {
     } else if (exception instanceof Error) {
       // Never return raw Error.message to clients — may leak DB/internal details.
       this.logger.error(exception.message, exception.stack);
+      captureException(exception, {
+        path: request.originalUrl ?? request.url,
+        method: request.method,
+      });
       message =
         process.env["NODE_ENV"] === "production"
           ? "An unexpected error occurred"
