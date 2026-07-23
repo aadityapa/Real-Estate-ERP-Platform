@@ -3,11 +3,15 @@ import { Prisma } from "@prisma/client";
 import { getPaginationParams } from "@propos/shared-utils";
 import { PrismaService } from "../../../database/prisma.service";
 import { paginate } from "../../../common/utils/paginate";
+import { TenantUsageService } from "../../../common/limits/tenant-usage.service";
 import { CreateProjectDto, FilterProjectDto, UpdateProjectDto } from "./dto/project.dto";
 
 @Injectable()
 export class ProjectsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly usage: TenantUsageService,
+  ) {}
 
   async findAll(tenantId: string, filter: FilterProjectDto) {
     const { skip, take, page, limit } = getPaginationParams(filter.page, filter.limit);
@@ -33,6 +37,7 @@ export class ProjectsService {
   async create(tenantId: string, dto: CreateProjectDto) {
     const company = await this.prisma.company.findFirst({ where: { id: dto.companyId, tenantId } });
     if (!company) throw new NotFoundException("Company not found");
+    await this.usage.assertProjectAvailable(tenantId, 1);
     return this.prisma.project.create({
       data: { ...dto, location: dto.location as Prisma.InputJsonValue | undefined, startDate: dto.startDate ? new Date(dto.startDate) : undefined, expectedEnd: dto.expectedEnd ? new Date(dto.expectedEnd) : undefined },
       include: { company: { select: { id: true, name: true } } },

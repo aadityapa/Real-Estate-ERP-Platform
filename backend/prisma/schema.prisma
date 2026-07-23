@@ -38,6 +38,7 @@ model Tenant {
   gatewayPayments   GatewayPayment[]
   gatewayRefunds    GatewayRefund[]
   gatewayWebhookEvents GatewayWebhookEvent[]
+  saasInvoices      SaasInvoice[]
 }
 
 /// Per-tenant limit overrides (null fields fall back to plan defaults). Basis for Phase 5 billing.
@@ -48,10 +49,14 @@ model TenantLimits {
   apiRateLimitRpm  Int?
   /// Max active user seats (status=ACTIVE).
   maxSeats         Int?
+  /// Max projects (via Company) for this tenant. -1 = unlimited.
+  maxProjects      Int?
   /// Max document storage in bytes (sum of Document.fileSize).
   maxStorageBytes  BigInt?
   /// Max concurrent BullMQ jobs for this tenant.
   queueConcurrency Int?
+  /// Optional feature-flag overrides (string keys → bool). Null keys fall back to plan.
+  featureFlags     Json?
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
 
@@ -1430,18 +1435,70 @@ model Activity {
   lead Lead? @relation(fields: [leadId], references: [id])
 }
 
+/// PropOS SaaS subscription (tenant → STARTER/GROWTH/ENTERPRISE). Money in integer paise.
 model Subscription {
-  id           String    @id @default(cuid())
-  tenantId     String
-  plan         PlanType
-  startDate    DateTime
-  endDate      DateTime?
-  status       SubStatus @default(ACTIVE)
-  amount       Decimal
-  billingCycle String
-  createdAt    DateTime  @default(now())
+  id                     String             @id @default(cuid())
+  tenantId               String
+  plan                   PlanType
+  status                 SubStatus          @default(TRIAL)
+  billingCycle           BillingCycle       @default(MONTHLY)
+  /// Recurring amount in integer paise (INR).
+  amountPaise            BigInt
+  currency               String             @default("INR")
+  /// MRR contribution in paise (normalized monthly; yearly / 12).
+  mrrPaise               BigInt             @default(0)
+  provider               GatewayProvider    @default(RAZORPAY)
+  providerSubscriptionId String?            @unique
+  providerPlanId         String?
+  startDate              DateTime           @default(now())
+  endDate                DateTime?
+  trialEndsAt            DateTime?
+  currentPeriodStart     DateTime?
+  currentPeriodEnd       DateTime?
+  cancelAtPeriodEnd      Boolean            @default(false)
+  cancelledAt            DateTime?
+  /// Dunning: NONE | RETRYING | EXHAUSTED
+  dunningStatus          String             @default("NONE")
+  dunningAttempts        Int                @default(0)
+  lastPaymentAt          DateTime?
+  nextRetryAt            DateTime?
+  createdAt              DateTime           @default(now())
+  updatedAt              DateTime           @updatedAt
 
-  tenant Tenant @relation(fields: [tenantId], references: [id])
+  tenant   Tenant        @relation(fields: [tenantId], references: [id])
+  invoices SaasInvoice[]
+
+  @@index([tenantId])
+  @@index([tenantId, status])
+  @@index([status])
+}
+
+/// PropOS SaaS invoice (GST IRN/QR deferred to Phase 6). Amounts in integer paise.
+model SaasInvoice {
+  id                 String            @id @default(cuid())
+  tenantId           String
+  subscriptionId     String
+  invoiceNumber      String            @unique
+  /// Integer paise (INR).
+  amountPaise        BigInt
+  currency           String            @default("INR")
+  status             SaasInvoiceStatus @default(OPEN)
+  periodStart        DateTime
+  periodEnd          DateTime
+  providerInvoiceId  String?           @unique
+  providerPaymentId  String?
+  /// Placeholder for Phase 6 GST fields (GSTIN, HSN/SAC, CGST/SGST/IGST).
+  taxNote            String?
+  paidAt             DateTime?
+  createdAt          DateTime          @default(now())
+  updatedAt          DateTime          @updatedAt
+
+  tenant       Tenant       @relation(fields: [tenantId], references: [id])
+  subscription Subscription @relation(fields: [subscriptionId], references: [id])
+
+  @@index([tenantId])
+  @@index([subscriptionId])
+  @@index([tenantId, status])
 }
 
 // ============ ENUMS ============
@@ -1478,10 +1535,24 @@ enum PlanType {
 }
 
 enum SubStatus {
+  TRIAL
   ACTIVE
+  PAST_DUE
+  HALTED
   CANCELLED
   EXPIRED
-  TRIAL
+}
+
+enum BillingCycle {
+  MONTHLY
+  YEARLY
+}
+
+enum SaasInvoiceStatus {
+  OPEN
+  PAID
+  VOID
+  UNCOLLECTIBLE
 }
 
 enum ProjectType {

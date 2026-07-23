@@ -378,6 +378,10 @@ export const TENANT_DELETE_STEPS: readonly TenantDeleteStep[] = [
     sql: `DELETE FROM "Customer" WHERE "tenantId" = $1`,
   },
   {
+    label: "saas_invoices",
+    sql: `DELETE FROM "SaasInvoice" WHERE "tenantId" = $1`,
+  },
+  {
     label: "subscriptions",
     sql: `DELETE FROM "Subscription" WHERE "tenantId" = $1`,
   },

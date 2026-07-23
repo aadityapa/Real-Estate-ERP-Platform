@@ -1,9 +1,11 @@
 import { Body, Controller, Post } from "@nestjs/common";
 import { TenantId } from "../../common/decorators/current-user.decorator";
+import { RequireFeatures } from "../../common/decorators/auth.decorators";
 import { AiService } from "./ai.service";
 import { LeadScoreDto, SuggestFollowUpDto } from "./dto/ai.dto";
 
 @Controller("ai")
+@RequireFeatures("api_access")
 export class AiController {
   constructor(private readonly service: AiService) {}
 
@@ -15,4 +17,5 @@ export class AiController {
   @Post("suggest-follow-up")
   suggestFollowUp(@TenantId() tenantId: string, @Body() dto: SuggestFollowUpDto) {
     return this.service.suggestFollowUp(tenantId, dto);
-  }}
+  }
+}

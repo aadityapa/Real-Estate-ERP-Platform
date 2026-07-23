@@ -38,6 +38,7 @@ export const DIRECT_TENANT_MODELS = [
   "TenantLimits",
   "GatewayPayment",
   "GatewayRefund",
+  "SaasInvoice",
 ] as const;
 
 export type DirectTenantModel = (typeof DIRECT_TENANT_MODELS)[number];

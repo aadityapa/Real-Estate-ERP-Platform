@@ -12,6 +12,9 @@ export const Permissions = {
   ADMIN_TAB_LOGINS_WRITE: "admin:write:tab-logins",
   ADMIN_USAGE_READ: "admin:read:usage",
   ADMIN_USAGE_WRITE: "admin:write:usage",
+  /** SaaS subscription billing (plans, invoices, upgrade). */
+  ADMIN_BILLING_READ: "admin:read:billing",
+  ADMIN_BILLING_WRITE: "admin:write:billing",
   /** DPDP / GDPR tenant data-portability export. */
   ADMIN_LIFECYCLE_EXPORT: "admin:export:tenant",
   /** DPDP / GDPR tenant hard-delete (right to erasure). */

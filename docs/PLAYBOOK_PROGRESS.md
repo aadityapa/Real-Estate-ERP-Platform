@@ -24,6 +24,7 @@
 | **4.2 Health endpoints** | Done | live/ready |
 | **4.3 Backups, DR & data lifecycle** | Done | RPO 15m / RTO 4h; `scripts/backup.sh` + `restore.sh` + `verify-restore.sh`; S3 lifecycle JSON; tenant `GET/DELETE /admin/lifecycle` (export + hard-delete with S3/local purge + AuditLog erasure GUC). Docs: `docs/DR_RUNBOOK.md`. Migration: `20260723180000_audit_log_erasure_allow` (`prisma migrate deploy` when DB up). |
 | **5.1 Razorpay integration** | Done | Provider interface + `RazorpayGateway`; orders/confirm/webhook/refund/reconciliation under `/sales/payments/gateway`; money as BIGINT paise; webhook HMAC + event-id idempotency; capture → installment → receipt → ledger. Migration: `20260723190000_razorpay_gateway` (`prisma migrate deploy` when DB up). Env: `RAZORPAY_KEY_ID` / `RAZORPAY_KEY_SECRET` / `RAZORPAY_WEBHOOK_SECRET`. |
+| **5.2 Subscription billing & plan limits** | Done | Plan entitlements (seats/projects/storage/RPM/features) + SaaS `Subscription`/`SaasInvoice` (paise); Razorpay Subscriptions gateway; `/billing/*` + webhook dunning/trial/proration; `FeatureFlagsGuard`; seat/project enforcement with `PLAN_LIMIT_EXCEEDED`; MRR/churn analytics events; frontend spec `docs/BILLING_ADMIN_PAGE.md` + `docs/BILLING.md`. Migration: `20260723200000_saas_subscription_billing` (`prisma migrate deploy` when DB up). |
 | Next.js bump | Done | 15.5.21 |
 | P0 Customer tenancy / LMS / RBAC / DTOs | Done | See prior commit |
 
@@ -34,12 +35,12 @@ pnpm --filter @propos/frontend test
 pnpm --filter @propos/backend test:cov
 pnpm --filter @propos/backend exec jest --testPathPattern=auth
 pnpm --filter @propos/backend exec jest --testPathPattern=permissions
-pnpm --filter @propos/backend exec jest --testPathPattern="exception|upload-safety|redact|cors|request-id|pii-crypto|audit|production-secrets|tenant|limits|plan-defaults|pino|metrics|tracing|sentry|retention|storage-keys|tenant-delete|storage-purger|gateway|razorpay|money"
+pnpm --filter @propos/backend exec jest --testPathPattern="exception|upload-safety|redact|cors|request-id|pii-crypto|audit|production-secrets|tenant|limits|plan-defaults|pino|metrics|tracing|sentry|retention|storage-keys|tenant-delete|storage-purger|gateway|razorpay|money|billing"
 pnpm test:e2e   # requires docker-compose.full.yml on :3000/:3001
 node scripts/check-prisma-migration.cjs
 # DR (needs Postgres client or compose postgres):
 #   ./scripts/backup.sh && ./scripts/verify-restore.sh backups/propos-*.dump
-# Razorpay migration (when Postgres up):
+# Razorpay / SaaS billing migrations (when Postgres up):
 #   pnpm --filter @propos/backend exec prisma migrate deploy
 ```
 
@@ -47,4 +48,4 @@ Branch protection: `docs/CI_BRANCH_PROTECTION.md`
 
 ## Remaining (playbook order)
 
-- **5.2–11** SaaS subscription billing, GST/RERA/DPDP, perf, IaC/CD, SSO, mobile, go-live  
+- **6.1–11** GST/RERA/DPDP, perf, IaC/CD, SSO, mobile, go-live  

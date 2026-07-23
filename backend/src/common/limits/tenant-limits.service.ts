@@ -1,9 +1,11 @@
 import { Injectable } from "@nestjs/common";
-import type { PlanType } from "@prisma/client";
+import { Prisma, type PlanType } from "@prisma/client";
 import { PrismaService } from "../../database/prisma.service";
 import {
   EffectiveTenantLimits,
   LimitOverrides,
+  PLAN_FEATURES,
+  type PlanFeature,
   mergePlanLimits,
 } from "./plan-defaults";
 
@@ -28,8 +30,10 @@ export class TenantLimitsService {
           select: {
             apiRateLimitRpm: true,
             maxSeats: true,
+            maxProjects: true,
             maxStorageBytes: true,
             queueConcurrency: true,
+            featureFlags: true,
           },
         },
       },
@@ -49,8 +53,10 @@ export class TenantLimitsService {
       ? {
           apiRateLimitRpm: tenant.limits.apiRateLimitRpm,
           maxSeats: tenant.limits.maxSeats,
+          maxProjects: tenant.limits.maxProjects,
           maxStorageBytes: tenant.limits.maxStorageBytes,
           queueConcurrency: tenant.limits.queueConcurrency,
+          featureFlags: parseFeatureFlags(tenant.limits.featureFlags),
         }
       : null;
 
@@ -66,21 +72,35 @@ export class TenantLimitsService {
     tenantId: string,
     dto: LimitOverrides,
   ): Promise<TenantLimitsSnapshot> {
+    const featureFlagsJson =
+      dto.featureFlags === undefined
+        ? undefined
+        : dto.featureFlags === null
+          ? Prisma.DbNull
+          : (dto.featureFlags as Prisma.InputJsonValue);
+
     await this.prisma.tenantLimits.upsert({
       where: { tenantId },
       create: {
         tenantId,
         apiRateLimitRpm: dto.apiRateLimitRpm ?? null,
         maxSeats: dto.maxSeats ?? null,
+        maxProjects: dto.maxProjects ?? null,
         maxStorageBytes:
           dto.maxStorageBytes != null ? BigInt(dto.maxStorageBytes) : null,
         queueConcurrency: dto.queueConcurrency ?? null,
+        ...(featureFlagsJson !== undefined
+          ? { featureFlags: featureFlagsJson }
+          : {}),
       },
       update: {
         ...(dto.apiRateLimitRpm !== undefined
           ? { apiRateLimitRpm: dto.apiRateLimitRpm }
           : {}),
         ...(dto.maxSeats !== undefined ? { maxSeats: dto.maxSeats } : {}),
+        ...(dto.maxProjects !== undefined
+          ? { maxProjects: dto.maxProjects }
+          : {}),
         ...(dto.maxStorageBytes !== undefined
           ? {
               maxStorageBytes:
@@ -92,8 +112,23 @@ export class TenantLimitsService {
         ...(dto.queueConcurrency !== undefined
           ? { queueConcurrency: dto.queueConcurrency }
           : {}),
+        ...(featureFlagsJson !== undefined
+          ? { featureFlags: featureFlagsJson }
+          : {}),
       },
     });
     return this.getEffectiveLimits(tenantId);
   }
+}
+
+function parseFeatureFlags(
+  raw: unknown,
+): Partial<Record<PlanFeature, boolean>> | null {
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return null;
+  const out: Partial<Record<PlanFeature, boolean>> = {};
+  const obj = raw as Record<string, unknown>;
+  for (const key of PLAN_FEATURES) {
+    if (typeof obj[key] === "boolean") out[key] = obj[key];
+  }
+  return Object.keys(out).length ? out : null;
 }

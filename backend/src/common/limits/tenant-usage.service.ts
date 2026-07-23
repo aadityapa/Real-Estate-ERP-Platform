@@ -10,11 +10,14 @@ export interface TenantUsageSnapshot {
   apiCallsLastMinute: number;
   apiCallsToday: number;
   seats: number;
+  projects: number;
   storageBytes: number;
 }
 
+export const PLAN_LIMIT_ERROR = "PLAN_LIMIT_EXCEEDED" as const;
+
 /**
- * Per-tenant usage counters. API call counters live in Redis; seats and storage
+ * Per-tenant usage counters. API call counters live in Redis; seats/projects/storage
  * are sourced from Postgres (authoritative) with optional Redis cache warm.
  */
 @Injectable()
@@ -48,6 +51,12 @@ export class TenantUsageService {
     });
   }
 
+  async getProjects(tenantId: string): Promise<number> {
+    return this.prisma.project.count({
+      where: { company: { tenantId } },
+    });
+  }
+
   async getStorageBytes(tenantId: string): Promise<number> {
     const agg = await this.prisma.document.aggregate({
       where: { tenantId },
@@ -57,14 +66,21 @@ export class TenantUsageService {
   }
 
   async getUsage(tenantId: string): Promise<TenantUsageSnapshot> {
-    const [apiCallsLastMinute, apiCallsToday, seats, storageBytes] =
+    const [apiCallsLastMinute, apiCallsToday, seats, projects, storageBytes] =
       await Promise.all([
         this.getApiCallsLastMinute(tenantId),
         this.getApiCallsToday(tenantId),
         this.getSeats(tenantId),
+        this.getProjects(tenantId),
         this.getStorageBytes(tenantId),
       ]);
-    return { apiCallsLastMinute, apiCallsToday, seats, storageBytes };
+    return {
+      apiCallsLastMinute,
+      apiCallsToday,
+      seats,
+      projects,
+      storageBytes,
+    };
   }
 
   /** Reject if adding `deltaSeats` would exceed the seat cap. */
@@ -72,14 +88,41 @@ export class TenantUsageService {
     tenantId: string,
     deltaSeats = 1,
   ): Promise<void> {
-    const [{ limits }, seats] = await Promise.all([
+    const [{ plan, limits }, seats] = await Promise.all([
       this.limits.getEffectiveLimits(tenantId),
       this.getSeats(tenantId),
     ]);
     if (seats + deltaSeats > limits.maxSeats) {
-      throw new ForbiddenException(
-        `Seat limit reached (${limits.maxSeats}). Upgrade plan or deactivate users.`,
-      );
+      throw new ForbiddenException({
+        code: PLAN_LIMIT_ERROR,
+        limit: "seats",
+        plan,
+        max: limits.maxSeats,
+        current: seats,
+        message: `Seat limit reached (${limits.maxSeats} on ${plan}). Upgrade plan or deactivate users.`,
+      });
+    }
+  }
+
+  /** Reject if adding `deltaProjects` would exceed the project cap (-1 = unlimited). */
+  async assertProjectAvailable(
+    tenantId: string,
+    deltaProjects = 1,
+  ): Promise<void> {
+    const [{ plan, limits }, projects] = await Promise.all([
+      this.limits.getEffectiveLimits(tenantId),
+      this.getProjects(tenantId),
+    ]);
+    if (limits.maxProjects < 0) return;
+    if (projects + deltaProjects > limits.maxProjects) {
+      throw new ForbiddenException({
+        code: PLAN_LIMIT_ERROR,
+        limit: "projects",
+        plan,
+        max: limits.maxProjects,
+        current: projects,
+        message: `Project limit reached (${limits.maxProjects} on ${plan}). Upgrade plan to add more projects.`,
+      });
     }
   }
 
@@ -89,14 +132,19 @@ export class TenantUsageService {
     deltaBytes: number,
   ): Promise<void> {
     if (deltaBytes <= 0) return;
-    const [{ limits }, used] = await Promise.all([
+    const [{ plan, limits }, used] = await Promise.all([
       this.limits.getEffectiveLimits(tenantId),
       this.getStorageBytes(tenantId),
     ]);
     if (used + deltaBytes > limits.maxStorageBytes) {
-      throw new ForbiddenException(
-        `Storage limit reached (${limits.maxStorageBytes} bytes).`,
-      );
+      throw new ForbiddenException({
+        code: PLAN_LIMIT_ERROR,
+        limit: "storage",
+        plan,
+        max: limits.maxStorageBytes,
+        current: used,
+        message: `Storage limit reached (${limits.maxStorageBytes} bytes on ${plan}). Upgrade plan for more storage.`,
+      });
     }
   }
 

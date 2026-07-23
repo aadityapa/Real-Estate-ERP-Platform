@@ -38,6 +38,8 @@ async function main(): Promise<void> {
     { module: "admin", action: "write", resource: "tab-logins" },
     { module: "admin", action: "read", resource: "usage" },
     { module: "admin", action: "write", resource: "usage" },
+    { module: "admin", action: "read", resource: "billing" },
+    { module: "admin", action: "write", resource: "billing" },
     { module: "admin", action: "export", resource: "tenant" },
     { module: "admin", action: "delete", resource: "tenant" },
     { module: "finance", action: "read", resource: "ledger" },

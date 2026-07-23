@@ -1,4 +1,5 @@
 import { SetMetadata } from "@nestjs/common";
+import type { PlanFeature } from "../limits/plan-defaults";
 
 export const IS_PUBLIC_KEY = "isPublic";
 export const Public = (): ReturnType<typeof SetMetadata> =>
@@ -13,3 +14,9 @@ export const ROLES_KEY = "roles";
 export const RequireRoles = (
   ...roles: string[]
 ): ReturnType<typeof SetMetadata> => SetMetadata(ROLES_KEY, roles);
+
+export const FEATURES_KEY = "planFeatures";
+/** Require plan feature flags (enforced by FeatureFlagsGuard). */
+export const RequireFeatures = (
+  ...features: PlanFeature[]
+): ReturnType<typeof SetMetadata> => SetMetadata(FEATURES_KEY, features);

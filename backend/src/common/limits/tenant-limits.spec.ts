@@ -7,6 +7,7 @@ import type { TenantLimitsService } from "./tenant-limits.service";
 import type { RedisService } from "../redis/redis.service";
 import type { PrismaService } from "../../database/prisma.service";
 import type { ConfigService } from "@nestjs/config";
+import { PLAN_LIMIT_DEFAULTS } from "./plan-defaults";
 
 function mockLimits(
   rpm: number,
@@ -19,8 +20,20 @@ function mockLimits(
       limits: {
         apiRateLimitRpm: rpm,
         maxSeats: 5,
+        maxProjects: 1,
         maxStorageBytes: 1_000_000,
         queueConcurrency,
+        features: {
+          crm: true,
+          lms: false,
+          finance: false,
+          documents: true,
+          construction: false,
+          api_access: false,
+          sso: false,
+          custom_roles: false,
+          advanced_analytics: false,
+        },
       },
       overrides: null,
     }),
@@ -40,9 +53,10 @@ function mockRedis(): RedisService {
   } as unknown as RedisService;
 }
 
-function mockPrisma(seats = 0, storage = 0): PrismaService {
+function mockPrisma(seats = 0, storage = 0, projects = 0): PrismaService {
   return {
     user: { count: jest.fn().mockResolvedValue(seats) },
+    project: { count: jest.fn().mockResolvedValue(projects) },
     document: {
       aggregate: jest.fn().mockResolvedValue({ _sum: { fileSize: storage } }),
     },
@@ -132,8 +146,10 @@ describe("TenantQueueService fairness", () => {
         limits: {
           apiRateLimitRpm: 60,
           maxSeats: 5,
+          maxProjects: 1,
           maxStorageBytes: 1_000_000,
           queueConcurrency: 1,
+          features: PLAN_LIMIT_DEFAULTS.STARTER.features,
         },
         overrides: null,
       })),

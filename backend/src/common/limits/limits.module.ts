@@ -3,6 +3,7 @@ import { TenantLimitsService } from "./tenant-limits.service";
 import { TenantUsageService } from "./tenant-usage.service";
 import { TenantRateLimitGuard } from "./tenant-rate-limit.guard";
 import { TenantQueueService } from "./tenant-queue.service";
+import { FeatureFlagsGuard } from "./feature-flags.guard";
 
 @Global()
 @Module({
@@ -11,12 +12,14 @@ import { TenantQueueService } from "./tenant-queue.service";
     TenantUsageService,
     TenantRateLimitGuard,
     TenantQueueService,
+    FeatureFlagsGuard,
   ],
   exports: [
     TenantLimitsService,
     TenantUsageService,
     TenantRateLimitGuard,
     TenantQueueService,
+    FeatureFlagsGuard,
   ],
 })
 export class LimitsModule {}

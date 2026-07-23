@@ -42,6 +42,8 @@ import { AuditInterceptor } from "./common/audit/audit.interceptor";
 import { TenantContextInterceptor } from "./common/tenant/tenant-context.interceptor";
 import { LimitsModule } from "./common/limits/limits.module";
 import { TenantRateLimitGuard } from "./common/limits/tenant-rate-limit.guard";
+import { FeatureFlagsGuard } from "./common/limits/feature-flags.guard";
+import { BillingModule } from "./modules/billing/billing.module";
 
 @Module({
   imports: [
@@ -89,6 +91,7 @@ import { TenantRateLimitGuard } from "./common/limits/tenant-rate-limit.guard";
     LmsModule,
     SupportModule,
     HealthModule,
+    BillingModule,
   ],
   providers: [
     { provide: APP_FILTER, useClass: GlobalExceptionFilter },
@@ -101,6 +104,7 @@ import { TenantRateLimitGuard } from "./common/limits/tenant-rate-limit.guard";
     { provide: APP_GUARD, useClass: TenantGuard },
     { provide: APP_GUARD, useClass: TenantRateLimitGuard },
     { provide: APP_GUARD, useClass: PermissionsGuard },
+    { provide: APP_GUARD, useClass: FeatureFlagsGuard },
   ],
 })
 export class AppModule {}

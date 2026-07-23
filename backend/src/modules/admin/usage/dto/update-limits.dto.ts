@@ -17,6 +17,14 @@ export class UpdateTenantLimitsDto {
   @Min(1)
   maxSeats?: number | null;
 
+  /** -1 = unlimited. */
+  @IsOptional()
+  @ValidateIf((_, v) => v !== null)
+  @Type(() => Number)
+  @IsInt()
+  @Min(-1)
+  maxProjects?: number | null;
+
   @IsOptional()
   @ValidateIf((_, v) => v !== null)
   @Type(() => Number)
