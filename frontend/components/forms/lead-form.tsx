@@ -1,31 +1,13 @@
 "use client";
 
+import { cloneElement, isValidElement } from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
-import { z } from "zod";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { leadSchema, type LeadFormValues } from "@/lib/crm/lead-schema";
 
-const leadSchema = z.object({
-  firstName: z.string().min(1, "First name is required"),
-  lastName: z.string().optional(),
-  email: z.string().email().optional().or(z.literal("")),
-  phone: z.string().min(10, "Valid phone required"),
-  source: z.enum([
-    "WEBSITE",
-    "FACEBOOK",
-    "GOOGLE",
-    "WHATSAPP",
-    "PORTAL",
-    "WALKIN",
-    "REFERRAL",
-    "OTHER",
-  ]),
-  priority: z.enum(["LOW", "MEDIUM", "HIGH", "URGENT"]),
-  location: z.string().optional(),
-});
-
-export type LeadFormValues = z.infer<typeof leadSchema>;
+export type { LeadFormValues };
 
 interface LeadFormProps {
   defaultValues?: Partial<LeadFormValues>;
@@ -124,12 +106,17 @@ function Field({
   children: React.ReactNode;
   className?: string;
 }): React.ReactElement {
+  const fieldId = `lead-${label.toLowerCase().replace(/\s+/g, "-")}`;
+  const control = isValidElement<{ id?: string }>(children)
+    ? cloneElement(children, { id: fieldId })
+    : children;
+
   return (
     <div className={className}>
-      <label className="mb-1.5 block text-sm font-medium text-slate-700">
+      <label htmlFor={fieldId} className="mb-1.5 block text-sm font-medium text-slate-700">
         {label}
       </label>
-      {children}
+      {control}
       {error && <p className="mt-1 text-xs text-danger">{error}</p>}
     </div>
   );

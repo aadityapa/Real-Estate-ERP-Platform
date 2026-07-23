@@ -33,6 +33,10 @@ pnpm-debug.log*
 
 # Test
 coverage
+playwright-report
+test-results
+blob-report
+playwright/.cache
 
 # Prisma
 apps/api/prisma/*.db

@@ -19,17 +19,11 @@ import { useLeads, type Lead } from "@/hooks/use-leads";
 import { api } from "@/lib/api";
 import { StatusBadge } from "@/components/tables/filter-bar";
 import { cn } from "@/lib/utils";
-
-const PIPELINE_STAGES = [
-  "NEW",
-  "CONTACTED",
-  "INTERESTED",
-  "SITE_VISIT",
-  "NEGOTIATION",
-  "BOOKING",
-  "AGREEMENT",
-  "LOST",
-] as const;
+import {
+  PIPELINE_STAGES,
+  commitPipelineStageMove,
+  resolvePipelineStageMove,
+} from "@/lib/crm/pipeline";
 
 const STAGE_LABELS: Record<string, string> = {
   NEW: "New",
@@ -56,18 +50,20 @@ export function SalesPipeline(): React.ReactElement {
   async function handleDragEnd(event: DragEndEvent): Promise<void> {
     setActiveId(null);
     const { active, over } = event;
-    if (!over) return;
-
-    const leadId = active.id as string;
-    const newStatus = over.id as string;
-    if (!PIPELINE_STAGES.includes(newStatus as (typeof PIPELINE_STAGES)[number])) return;
-
+    const leadId = String(active.id);
     const lead = leads.find((l) => l.id === leadId);
-    if (!lead || lead.status === newStatus) return;
+    const newStatus = resolvePipelineStageMove(lead, over ? String(over.id) : null);
+    if (!newStatus) return;
 
-    await api.patch(`/crm/leads/${leadId}`, { status: newStatus });
-    void queryClient.invalidateQueries({ queryKey: ["leads"] });
-    void queryClient.invalidateQueries({ queryKey: ["lead-pipeline"] });
+    await commitPipelineStageMove({
+      leadId,
+      newStatus,
+      patch: (path, body) => api.patch(path, body),
+      onSuccess: () => {
+        void queryClient.invalidateQueries({ queryKey: ["leads"] });
+        void queryClient.invalidateQueries({ queryKey: ["lead-pipeline"] });
+      },
+    });
   }
 
   if (isLoading) {
