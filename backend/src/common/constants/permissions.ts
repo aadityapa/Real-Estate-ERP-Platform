@@ -50,6 +50,12 @@ export const Permissions = {
 
   LEGAL_CASES_READ: "legal:read:cases",
   LEGAL_CASES_WRITE: "legal:write:cases",
+  LEGAL_RERA_READ: "legal:read:rera",
+  LEGAL_RERA_WRITE: "legal:write:rera",
+  LEGAL_AGREEMENTS_READ: "legal:read:agreements",
+  LEGAL_AGREEMENTS_WRITE: "legal:write:agreements",
+  LEGAL_ESIGN_READ: "legal:read:esign",
+  LEGAL_ESIGN_WRITE: "legal:write:esign",
 
   DOCUMENTS_READ: "documents:read:files",
   DOCUMENTS_WRITE: "documents:write:files",

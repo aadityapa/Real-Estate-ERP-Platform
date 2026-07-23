@@ -67,6 +67,12 @@ async function main(): Promise<void> {
     { module: "sales", action: "write", resource: "inventory" },
     { module: "legal", action: "read", resource: "cases" },
     { module: "legal", action: "write", resource: "cases" },
+    { module: "legal", action: "read", resource: "rera" },
+    { module: "legal", action: "write", resource: "rera" },
+    { module: "legal", action: "read", resource: "agreements" },
+    { module: "legal", action: "write", resource: "agreements" },
+    { module: "legal", action: "read", resource: "esign" },
+    { module: "legal", action: "write", resource: "esign" },
     { module: "documents", action: "read", resource: "files" },
     { module: "documents", action: "write", resource: "files" },
     { module: "vendors", action: "read", resource: "vendors" },
@@ -210,6 +216,62 @@ async function main(): Promise<void> {
         { name: "Structure Complete", percentage: 20, daysFromBooking: 180 },
         { name: "Possession", percentage: 40, daysFromBooking: 365 },
       ],
+      isActive: true,
+    },
+  });
+
+  await prisma.reraProjectProfile.upsert({
+    where: { projectId: project.id },
+    update: {},
+    create: {
+      tenantId: tenant.id,
+      projectId: project.id,
+      reraNumber: "P52100012345",
+      registrationDate: new Date("2024-01-15"),
+      validUntil: new Date("2029-01-14"),
+      promoterName: "Sunrise Developers Pvt Ltd",
+      totalCarpetAreaSqm: 12500,
+      openParkingCount: 40,
+      coveredParkingCount: 80,
+      disclosures: {
+        quarterlyUpdateFiled: true,
+        formBUploaded: true,
+      },
+      projectWebsiteUrl: "https://example.com/sunrise-heights",
+      lastDisclosureAt: new Date("2026-04-01"),
+    },
+  });
+
+  const reraStages = [
+    { code: "BOOKING", name: "Booking", maxCumulativePctBps: 1000, sortOrder: 1, isCompleted: true },
+    { code: "PLINTH", name: "Plinth", maxCumulativePctBps: 3000, sortOrder: 2, isCompleted: false },
+    { code: "SLAB", name: "Slab casting", maxCumulativePctBps: 7000, sortOrder: 3, isCompleted: false },
+    { code: "POSSESSION", name: "Possession", maxCumulativePctBps: 10000, sortOrder: 4, isCompleted: false },
+  ];
+  for (const stage of reraStages) {
+    await prisma.reraPaymentStage.upsert({
+      where: {
+        projectId_code: { projectId: project.id, code: stage.code },
+      },
+      update: {},
+      create: {
+        tenantId: tenant.id,
+        projectId: project.id,
+        ...stage,
+      },
+    });
+  }
+
+  await prisma.agreementTemplate.upsert({
+    where: { id: "seed-agreement-template-allotment" },
+    update: {},
+    create: {
+      id: "seed-agreement-template-allotment",
+      tenantId: tenant.id,
+      name: "Default Allotment Letter",
+      type: "ALLOTMENT",
+      bodyText:
+        "Developer: {{companyName}}\nBuyer: {{buyerName}}\nProject: {{projectName}} Unit {{unitNumber}}\nRERA: {{reraNumber}}\nConsideration: ₹{{totalAmount}}\nBooking: ₹{{bookingAmount}} on {{bookingDate}}",
       isActive: true,
     },
   });

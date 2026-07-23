@@ -29,6 +29,9 @@ export const SENSITIVE_AUDIT_ROUTES: SensitiveRoute[] = [
   { match: /^\/api\/v1\/finance\/tds(?:\/|$)/, entity: "TdsEntry", idParam: "id" },
   { match: /^\/api\/v1\/admin\/users(?:\/|$)/, entity: "User", idParam: "id" },
   { match: /^\/api\/v1\/documents(?:\/|$)/, entity: "Document", idParam: "id" },
+  { match: /^\/api\/v1\/legal\/rera(?:\/|$)/, entity: "ReraProjectProfile", idParam: "projectId" },
+  { match: /^\/api\/v1\/legal\/agreements(?:\/|$)/, entity: "Agreement", idParam: "id" },
+  { match: /^\/api\/v1\/legal\/esign(?:\/|$)/, entity: "ESignRequest", idParam: "id" },
   { match: /^\/api\/v1\/legal(?:\/|$)/, entity: "LegalCase", idParam: "id" },
 ];
 

@@ -18,6 +18,10 @@ export interface TenantDeleteStep {
  */
 export const TENANT_DELETE_STEPS: readonly TenantDeleteStep[] = [
   {
+    label: "esign_requests",
+    sql: `DELETE FROM "ESignRequest" WHERE "tenantId" = $1`,
+  },
+  {
     label: "document_versions",
     sql: `DELETE FROM "DocumentVersion" WHERE "documentId" IN (SELECT id FROM "Document" WHERE "tenantId" = $1)`,
   },
@@ -71,6 +75,18 @@ export const TENANT_DELETE_STEPS: readonly TenantDeleteStep[] = [
       LEFT JOIN "Lead" l ON l.id = b."leadId"
       WHERE c."tenantId" = $1 OR l."tenantId" = $1
     )`,
+  },
+  {
+    label: "agreement_templates",
+    sql: `DELETE FROM "AgreementTemplate" WHERE "tenantId" = $1`,
+  },
+  {
+    label: "rera_payment_stages",
+    sql: `DELETE FROM "ReraPaymentStage" WHERE "tenantId" = $1`,
+  },
+  {
+    label: "rera_profiles",
+    sql: `DELETE FROM "ReraProjectProfile" WHERE "tenantId" = $1`,
   },
   {
     label: "complaints",
