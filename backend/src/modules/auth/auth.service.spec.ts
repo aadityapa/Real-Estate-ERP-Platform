@@ -1,10 +1,13 @@
 import { UnauthorizedException } from "@nestjs/common";
+import * as bcrypt from "bcrypt";
 import { AuthService } from "./auth.service";
 import { sha256Hex } from "../../common/utils/crypto";
 
+jest.mock("bcrypt");
+
 type MockFn = jest.Mock;
 
-describe("AuthService — SHA-256 token hashing", () => {
+describe("AuthService", () => {
   let service: AuthService;
   let prisma: {
     session: {
@@ -13,7 +16,11 @@ describe("AuthService — SHA-256 token hashing", () => {
       delete: MockFn;
       deleteMany: MockFn;
     };
-    user: { findUniqueOrThrow: MockFn };
+    user: {
+      findUniqueOrThrow: MockFn;
+      findUnique: MockFn;
+      update: MockFn;
+    };
   };
   let jwtService: { sign: MockFn };
   let configService: { get: MockFn };
@@ -23,10 +30,15 @@ describe("AuthService — SHA-256 token hashing", () => {
     id: "user-1",
     tenantId: "tenant-1",
     email: "a@b.com",
+    firstName: "A",
+    lastName: "B",
+    status: "ACTIVE",
+    passwordHash: "$2b$12$hashed",
     roles: [],
   };
 
   beforeEach(() => {
+    jest.clearAllMocks();
     prisma = {
       session: {
         create: jest.fn().mockResolvedValue({}),
@@ -34,7 +46,11 @@ describe("AuthService — SHA-256 token hashing", () => {
         delete: jest.fn().mockResolvedValue({}),
         deleteMany: jest.fn().mockResolvedValue({ count: 1 }),
       },
-      user: { findUniqueOrThrow: jest.fn().mockResolvedValue(user) },
+      user: {
+        findUniqueOrThrow: jest.fn().mockResolvedValue(user),
+        findUnique: jest.fn(),
+        update: jest.fn().mockResolvedValue(user),
+      },
     };
     jwtService = {
       sign: jest
@@ -44,7 +60,7 @@ describe("AuthService — SHA-256 token hashing", () => {
     };
     configService = {
       get: jest.fn((key: string) =>
-        key === "JWT_REFRESH_SECRET" ? "refresh-secret" : undefined,
+        key === "JWT_REFRESH_SECRET" ? "refresh-secret" : "15m",
       ),
     };
     tabLoginsService = { getForUser: jest.fn().mockResolvedValue(null) };
@@ -70,8 +86,6 @@ describe("AuthService — SHA-256 token hashing", () => {
     };
     expect(data.token).toBe(sha256Hex("raw-access-token"));
     expect(data.refreshToken).toBe(sha256Hex("raw-refresh-token"));
-    expect(data.token).not.toBe("raw-access-token");
-    expect(data.refreshToken).not.toBe("raw-refresh-token");
   });
 
   it("looks up refresh sessions by SHA-256 hash", async () => {
@@ -81,6 +95,10 @@ describe("AuthService — SHA-256 token hashing", () => {
       expiresAt: new Date(Date.now() + 60_000),
       user,
     });
+    jwtService.sign
+      .mockReset()
+      .mockReturnValueOnce("raw-access-token")
+      .mockReturnValueOnce("raw-refresh-token");
 
     await service.refreshToken("raw-refresh-token");
 
@@ -115,5 +133,44 @@ describe("AuthService — SHA-256 token hashing", () => {
     expect(prisma.session.deleteMany).toHaveBeenCalledWith({
       where: { userId: "user-1", token: sha256Hex("raw-access-token") },
     });
+  });
+
+  it("login rejects missing or inactive users", async () => {
+    prisma.user.findUnique.mockResolvedValue(null);
+    await expect(
+      service.login({ email: "x@y.com", password: "Admin@123" }),
+    ).rejects.toThrow(UnauthorizedException);
+
+    prisma.user.findUnique.mockResolvedValue({ ...user, status: "INACTIVE" });
+    await expect(
+      service.login({ email: "a@b.com", password: "Admin@123" }),
+    ).rejects.toThrow(UnauthorizedException);
+  });
+
+  it("login rejects invalid password", async () => {
+    prisma.user.findUnique.mockResolvedValue(user);
+    (bcrypt.compare as jest.Mock).mockResolvedValue(false);
+    await expect(
+      service.login({ email: "a@b.com", password: "wrong" }),
+    ).rejects.toThrow(UnauthorizedException);
+  });
+
+  it("login succeeds for active user with valid password", async () => {
+    prisma.user.findUnique.mockResolvedValue(user);
+    (bcrypt.compare as jest.Mock).mockResolvedValue(true);
+    jwtService.sign
+      .mockReset()
+      .mockReturnValueOnce("access")
+      .mockReturnValueOnce("refresh");
+
+    const result = await service.login({
+      email: "a@b.com",
+      password: "Admin@123",
+    });
+
+    expect(result.accessToken).toBe("access");
+    expect(result.refreshToken).toBe("refresh");
+    expect(result.user.email).toBe("a@b.com");
+    expect(prisma.user.update).toHaveBeenCalled();
   });
 });

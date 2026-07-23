@@ -27,6 +27,7 @@ import { NotificationsModule } from "./modules/notifications/notifications.modul
 import { EventsModule } from "./modules/events/events.module";
 import { LmsModule } from "./modules/lms/lms.module";
 import { SupportModule } from "./modules/support/support.module";
+import { HealthModule } from "./modules/health/health.module";
 import { GraphqlFeatureModule } from "./graphql/graphql.module";
 import { JwtAuthGuard } from "./common/guards/jwt-auth.guard";
 import { TenantGuard } from "./common/guards/tenant.guard";
@@ -75,6 +76,7 @@ import { TransformInterceptor } from "./common/interceptors/transform.intercepto
     NotificationsModule,
     LmsModule,
     SupportModule,
+    HealthModule,
   ],
   providers: [
     { provide: APP_FILTER, useClass: GlobalExceptionFilter },

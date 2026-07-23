@@ -33,8 +33,12 @@ export class GlobalExceptionFilter implements ExceptionFilter {
         message = exceptionResponse as string;
       }
     } else if (exception instanceof Error) {
-      message = exception.message;
+      // Never return raw Error.message to clients — may leak DB/internal details.
       this.logger.error(exception.message, exception.stack);
+      message =
+        process.env["NODE_ENV"] === "production"
+          ? "An unexpected error occurred"
+          : exception.message;
     }
 
     response.status(status).json({

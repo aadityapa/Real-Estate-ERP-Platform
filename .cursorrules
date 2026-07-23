@@ -1,0 +1,33 @@
+# PropOS — Cursor project rules
+
+## What this is
+PropOS is a multi-tenant SaaS ERP for Indian real estate developers.
+Monorepo: Turborepo + pnpm workspaces, TypeScript everywhere.
+- backend/   NestJS 11 (Express), REST under /api/v1, GraphQL (Apollo), Socket.IO gateway
+- frontend/  Next.js 15 App Router, React 19, TanStack Query, Zustand, Radix, Tailwind 4, Recharts
+- apps/mobile Expo (React Native), expo-router, consumes REST API
+- packages/  @propos/shared-types, @propos/shared-utils, @propos/config
+Data: PostgreSQL via Prisma (schema at backend/prisma/schema.prisma, 60+ models),
+Redis + BullMQ for cache/queues, AWS S3/CloudFront for documents (signed URLs).
+Auth: JWT access+refresh (@nestjs/jwt + passport-jwt), RBAC guards in backend/src/common.
+Multi-tenant: every domain row is scoped by tenantId (company). Isolation is critical.
+
+## Non-negotiable rules
+1. NEVER write a query in a domain module that is not filtered by tenantId. Tenant
+   isolation bugs are P0. When in doubt, add an explicit tenant guard/where clause.
+2. Validate all input with class-validator DTOs (backend) and Zod (frontend). No `any`
+   on request boundaries.
+3. Never log secrets, tokens, passwords, or PII (name+phone+email together). Use the
+   project logger, structured, redacted.
+4. Money is integer paise (BIGINT), never float. Currency is INR unless specified.
+5. Keep changes minimal and reviewable. Don't reformat or touch unrelated files.
+6. Every new endpoint needs: DTO validation, RBAC guard, tenant scoping, and a test.
+7. Follow existing patterns — look at an existing module (e.g. crm) before adding code.
+8. Prisma schema changes ALWAYS via a migration (`prisma migrate dev --name ...`),
+   never a silent `db push` in code that others run.
+
+## Definition of done for any task
+- Types check: `pnpm -w build`
+- Lint clean: `pnpm -w lint`
+- Tests pass and cover the new logic: `pnpm --filter @propos/backend test`
+- No new tenant-isolation or secret-logging violations.
