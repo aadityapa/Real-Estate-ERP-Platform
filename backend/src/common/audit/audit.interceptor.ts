@@ -22,6 +22,7 @@ interface SensitiveRoute {
  */
 export const SENSITIVE_AUDIT_ROUTES: SensitiveRoute[] = [
   { match: /^\/api\/v1\/sales\/bookings(?:\/|$)/, entity: "Booking", idParam: "id" },
+  { match: /^\/api\/v1\/sales\/payments\/gateway(?:\/|$)/, entity: "GatewayPayment", idParam: "id" },
   { match: /^\/api\/v1\/sales\/payments(?:\/|$)/, entity: "Payment", idParam: "id" },
   { match: /^\/api\/v1\/finance\/ledger(?:\/|$)/, entity: "LedgerEntry", idParam: "id" },
   { match: /^\/api\/v1\/admin\/users(?:\/|$)/, entity: "User", idParam: "id" },

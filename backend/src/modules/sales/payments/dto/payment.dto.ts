@@ -15,6 +15,7 @@ export enum PaymentModeDto {
   RTGS = "RTGS",
   UPI = "UPI",
   DD = "DD",
+  ONLINE = "ONLINE",
 }
 
 export class RecordPaymentDto {

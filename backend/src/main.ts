@@ -42,7 +42,13 @@ async function bootstrap(): Promise<void> {
 
   app.useLogger(app.get(PinoLogger));
 
-  app.useBodyParser("json", { limit: BODY_LIMIT });
+  // Stash raw body for Razorpay webhook HMAC verification (Prompt 5.1).
+  app.useBodyParser("json", {
+    limit: BODY_LIMIT,
+    verify: (req: Request, _res: Response, buf: Buffer) => {
+      (req as Request & { rawBody?: Buffer }).rawBody = buf;
+    },
+  });
   app.useBodyParser("urlencoded", { extended: true, limit: BODY_LIMIT });
 
   app.use(requestIdMiddleware);

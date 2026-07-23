@@ -34,6 +34,18 @@ export const TENANT_DELETE_STEPS: readonly TenantDeleteStep[] = [
     sql: `DELETE FROM "MaintenanceLog" WHERE "assetId" IN (SELECT id FROM "Asset" WHERE "tenantId" = $1)`,
   },
   {
+    label: "gateway_refunds",
+    sql: `DELETE FROM "GatewayRefund" WHERE "tenantId" = $1`,
+  },
+  {
+    label: "gateway_payments",
+    sql: `DELETE FROM "GatewayPayment" WHERE "tenantId" = $1`,
+  },
+  {
+    label: "gateway_webhook_events",
+    sql: `DELETE FROM "GatewayWebhookEvent" WHERE "tenantId" = $1`,
+  },
+  {
     label: "payments",
     sql: `DELETE FROM "Payment" WHERE "bookingId" IN (
       SELECT b.id FROM "Booking" b

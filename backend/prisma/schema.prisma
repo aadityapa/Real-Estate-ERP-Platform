@@ -32,9 +32,12 @@ model Tenant {
   helpdeskTickets HelpdeskTicket[]
   daReports       DaReport[]
   appointments    Appointment[]
-  customers       Customer[]
-  auditLogs       AuditLog[]
-  limits          TenantLimits?
+  customers         Customer[]
+  auditLogs         AuditLog[]
+  limits            TenantLimits?
+  gatewayPayments   GatewayPayment[]
+  gatewayRefunds    GatewayRefund[]
+  gatewayWebhookEvents GatewayWebhookEvent[]
 }
 
 /// Per-tenant limit overrides (null fields fall back to plan defaults). Basis for Phase 5 billing.
@@ -742,10 +745,11 @@ model Booking {
   unit        Unit         @relation(fields: [unitId], references: [id])
   customer    Customer     @relation(fields: [customerId], references: [id])
   paymentPlan PaymentPlan? @relation(fields: [paymentPlanId], references: [id])
-  payments    Payment[]
-  agreement   Agreement?
-  receipts    Receipt[]
-  commissions Commission[]
+  payments         Payment[]
+  agreement        Agreement?
+  receipts         Receipt[]
+  commissions      Commission[]
+  gatewayPayments  GatewayPayment[]
 
   @@index([status])
   @@index([createdAt])
@@ -777,8 +781,82 @@ model Payment {
   receiptId       String?
   createdAt       DateTime      @default(now())
 
-  booking Booking  @relation(fields: [bookingId], references: [id])
-  receipt Receipt? @relation(fields: [receiptId], references: [id])
+  booking         Booking          @relation(fields: [bookingId], references: [id])
+  receipt         Receipt?         @relation(fields: [receiptId], references: [id])
+  gatewayPayments GatewayPayment[]
+}
+
+/// Razorpay (and future PayU/Stripe) order linked to a booking installment.
+/// Amounts are integer paise (INR); never float.
+model GatewayPayment {
+  id                String               @id @default(cuid())
+  tenantId          String
+  bookingId         String
+  /// Installment schedule row (`Payment.id`).
+  paymentId         String
+  provider          GatewayProvider      @default(RAZORPAY)
+  /// Amount charged via gateway, integer paise.
+  amountPaise       BigInt
+  currency          String               @default("INR")
+  status            GatewayPaymentStatus @default(CREATED)
+  providerOrderId   String               @unique
+  providerPaymentId String?              @unique
+  receiptId         String?
+  ledgerEntryId     String?
+  /// Opaque correlation notes sent to the gateway (no card/UPI/PII).
+  notes             Json?
+  createdAt         DateTime             @default(now())
+  updatedAt         DateTime             @updatedAt
+
+  tenant   Tenant          @relation(fields: [tenantId], references: [id])
+  booking  Booking         @relation(fields: [bookingId], references: [id])
+  payment  Payment         @relation(fields: [paymentId], references: [id])
+  refunds  GatewayRefund[]
+
+  @@index([tenantId])
+  @@index([tenantId, status])
+  @@index([bookingId])
+  @@index([paymentId])
+  @@index([createdAt])
+}
+
+model GatewayRefund {
+  id               String              @id @default(cuid())
+  tenantId         String
+  gatewayPaymentId String
+  amountPaise      BigInt
+  providerRefundId String              @unique
+  status           GatewayRefundStatus @default(PENDING)
+  reason           String?
+  ledgerEntryId    String?
+  createdAt        DateTime            @default(now())
+  updatedAt        DateTime            @updatedAt
+
+  tenant         Tenant         @relation(fields: [tenantId], references: [id])
+  gatewayPayment GatewayPayment @relation(fields: [gatewayPaymentId], references: [id])
+
+  @@index([tenantId])
+  @@index([gatewayPaymentId])
+}
+
+/// Idempotent webhook intake — dedupe by provider + event id. Payload stored as hash only.
+model GatewayWebhookEvent {
+  id          String          @id @default(cuid())
+  tenantId    String?
+  provider    GatewayProvider
+  eventId     String
+  eventType   String
+  /// SHA-256 of raw body (never store full card/UPI payloads).
+  payloadHash String
+  status      GatewayWebhookStatus @default(PROCESSED)
+  error       String?
+  processedAt DateTime        @default(now())
+
+  tenant Tenant? @relation(fields: [tenantId], references: [id])
+
+  @@unique([provider, eventId])
+  @@index([tenantId])
+  @@index([processedAt])
 }
 
 model Receipt {
@@ -1520,6 +1598,33 @@ enum PaymentMode {
   RTGS
   UPI
   DD
+  ONLINE
+}
+
+enum GatewayProvider {
+  RAZORPAY
+}
+
+enum GatewayPaymentStatus {
+  CREATED
+  ATTEMPTED
+  CAPTURED
+  FAILED
+  REFUNDED
+  PARTIALLY_REFUNDED
+}
+
+enum GatewayRefundStatus {
+  PENDING
+  PROCESSED
+  FAILED
+}
+
+enum GatewayWebhookStatus {
+  PROCESSED
+  DUPLICATE
+  IGNORED
+  FAILED
 }
 
 enum PaymentStatus {

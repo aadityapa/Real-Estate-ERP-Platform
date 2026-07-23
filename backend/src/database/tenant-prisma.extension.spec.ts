@@ -63,6 +63,10 @@ describe("tenant model classification", () => {
     expect(isGlobalModel("Permission")).toBe(true);
     expect(isDirectTenantModel("Tenant")).toBe(false);
     expect(DIRECT_TENANT_MODELS.length).toBeGreaterThan(10);
-    expect(GLOBAL_MODELS).toEqual(["Tenant", "Permission"]);
+    expect(GLOBAL_MODELS).toEqual([
+      "Tenant",
+      "Permission",
+      "GatewayWebhookEvent",
+    ]);
   });
 });

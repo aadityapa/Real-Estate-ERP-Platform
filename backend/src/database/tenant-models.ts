@@ -36,6 +36,8 @@ export const DIRECT_TENANT_MODELS = [
   "Asset",
   "Subscription",
   "TenantLimits",
+  "GatewayPayment",
+  "GatewayRefund",
 ] as const;
 
 export type DirectTenantModel = (typeof DIRECT_TENANT_MODELS)[number];
@@ -45,7 +47,12 @@ export const DIRECT_TENANT_MODEL_SET: ReadonlySet<string> = new Set(
 );
 
 /** Truly global / system tables (allowlist — never auto-scoped). */
-export const GLOBAL_MODELS = ["Tenant", "Permission"] as const;
+/** Webhook intake is provider-global; tenantId is optional / resolved later. */
+export const GLOBAL_MODELS = [
+  "Tenant",
+  "Permission",
+  "GatewayWebhookEvent",
+] as const;
 
 export type GlobalModel = (typeof GLOBAL_MODELS)[number];
 
@@ -79,6 +86,7 @@ export const RELATION_SCOPED_MODELS = [
   "PaymentPlan", // → Project → Company
   "Payment", // → Booking → …
   "Receipt", // → Booking → …
+  // GatewayPayment / GatewayRefund are DIRECT (tenantId column)
   "Agreement", // → Booking → …
   "Complaint", // → Customer.tenantId
   "SupportTicket", // → Customer.tenantId
