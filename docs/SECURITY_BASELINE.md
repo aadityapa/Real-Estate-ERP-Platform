@@ -89,7 +89,7 @@ Unmaintained: none hard-flagged beyond recharts 2.x deprecation notice.
 - [x] Risky patterns grepped  
 - [x] Remediation grouped by effort  
 
-**Next:** Phase 3.2 per-tenant limits & fairness.
+**Next:** Phase 4.1 structured logging / tracing / metrics.
 
 ---
 

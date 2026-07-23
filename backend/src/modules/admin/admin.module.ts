@@ -3,8 +3,15 @@ import { CompaniesModule } from "./companies/companies.module";
 import { ProjectsModule } from "./projects/projects.module";
 import { UsersModule } from "./users/users.module";
 import { TabLoginsModule } from "./tab-logins/tab-logins.module";
+import { UsageModule } from "./usage/usage.module";
 
 @Module({
-  imports: [CompaniesModule, ProjectsModule, UsersModule, TabLoginsModule],
+  imports: [
+    CompaniesModule,
+    ProjectsModule,
+    UsersModule,
+    TabLoginsModule,
+    UsageModule,
+  ],
 })
 export class AdminModule {}

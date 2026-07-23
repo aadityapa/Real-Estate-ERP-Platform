@@ -74,3 +74,7 @@ flag false — the Prisma extension is the primary control.
 
 Do **not** enable `FORCE ROW LEVEL SECURITY` in production until the app role and
 `SET LOCAL` path are verified in staging.
+
+## Related
+
+- Per-tenant rate / usage / queue fairness: `docs/TENANT_LIMITS.md` (Phase 3.2)

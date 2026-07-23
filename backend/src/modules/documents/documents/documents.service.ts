@@ -8,11 +8,15 @@ import {
   assertUploadSize,
   sanitizeUploadFilename,
 } from "../../../common/utils/upload-safety";
+import { TenantUsageService } from "../../../common/limits/tenant-usage.service";
 import { CreateDocumentDto, FilterDocumentDto, UpdateDocumentDto } from "./dto/document.dto";
 
 @Injectable()
 export class DocumentsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly usage: TenantUsageService,
+  ) {}
 
   async findAll(tenantId: string, filter: FilterDocumentDto) {
     const { skip, take, page, limit } = getPaginationParams(filter.page, filter.limit);
@@ -38,6 +42,7 @@ export class DocumentsService {
   async create(tenantId: string, dto: CreateDocumentDto) {
     assertAllowedMimeType(dto.mimeType);
     assertUploadSize(dto.fileSize);
+    await this.usage.assertStorageAvailable(tenantId, dto.fileSize ?? 0);
     const name = sanitizeUploadFilename(dto.name);
     return this.prisma.document.create({
       data: {

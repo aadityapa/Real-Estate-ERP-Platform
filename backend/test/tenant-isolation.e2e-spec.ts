@@ -52,7 +52,10 @@ const cases: Case[] = [
   {
     module: "documents",
     model: "document",
-    createService: (prisma) => new DocumentsService(prisma as never),
+    createService: (prisma) =>
+      new DocumentsService(prisma as never, {
+        assertStorageAvailable: jest.fn().mockResolvedValue(undefined),
+      } as never),
   },
   {
     module: "assets",

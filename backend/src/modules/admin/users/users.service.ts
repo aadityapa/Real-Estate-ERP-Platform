@@ -4,11 +4,15 @@ import * as bcrypt from "bcrypt";
 import { getPaginationParams } from "@propos/shared-utils";
 import { PrismaService } from "../../../database/prisma.service";
 import { paginate } from "../../../common/utils/paginate";
+import { TenantUsageService } from "../../../common/limits/tenant-usage.service";
 import { CreateUserDto, FilterUserDto } from "./dto/user.dto";
 
 @Injectable()
 export class UsersService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly usage: TenantUsageService,
+  ) {}
   async findAll(tenantId: string, filter: FilterUserDto) {
     const { skip, take, page, limit } = getPaginationParams(filter.page, filter.limit);
     const where: Prisma.UserWhereInput = { tenantId, ...(filter.status && { status: filter.status }), ...(filter.search && { OR: [{ firstName: { contains: filter.search, mode: "insensitive" } }, { lastName: { contains: filter.search, mode: "insensitive" } }, { email: { contains: filter.search, mode: "insensitive" } }] }) };
@@ -24,6 +28,7 @@ export class UsersService {
     return user;
   }
   async create(tenantId: string, dto: CreateUserDto) {
+    await this.usage.assertSeatAvailable(tenantId, 1);
     const passwordHash = await bcrypt.hash(dto.password, 12);
     return this.prisma.user.create({ data: { tenantId, email: dto.email, passwordHash, firstName: dto.firstName, lastName: dto.lastName, phone: dto.phone }, select: { id: true, email: true, firstName: true, lastName: true, status: true } });
   }

@@ -35,6 +35,7 @@ export const DIRECT_TENANT_MODELS = [
   "LegalCase",
   "Asset",
   "Subscription",
+  "TenantLimits",
 ] as const;
 
 export type DirectTenantModel = (typeof DIRECT_TENANT_MODELS)[number];

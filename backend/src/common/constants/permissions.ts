@@ -10,6 +10,8 @@ export const Permissions = {
   ADMIN_PROJECTS_READ: "admin:read:projects",
   ADMIN_PROJECTS_WRITE: "admin:write:projects",
   ADMIN_TAB_LOGINS_WRITE: "admin:write:tab-logins",
+  ADMIN_USAGE_READ: "admin:read:usage",
+  ADMIN_USAGE_WRITE: "admin:write:usage",
 
   FINANCE_LEDGER_READ: "finance:read:ledger",
   FINANCE_LEDGER_WRITE: "finance:write:ledger",

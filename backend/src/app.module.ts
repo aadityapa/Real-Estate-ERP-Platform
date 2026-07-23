@@ -38,10 +38,13 @@ import { TransformInterceptor } from "./common/interceptors/transform.intercepto
 import { AuditModule } from "./common/audit/audit.module";
 import { AuditInterceptor } from "./common/audit/audit.interceptor";
 import { TenantContextInterceptor } from "./common/tenant/tenant-context.interceptor";
+import { LimitsModule } from "./common/limits/limits.module";
+import { TenantRateLimitGuard } from "./common/limits/tenant-rate-limit.guard";
 
 @Module({
   imports: [
     AuditModule,
+    LimitsModule,
     ConfigModule.forRoot({ isGlobal: true }),
     GraphQLModule.forRoot<ApolloDriverConfig>({
       driver: ApolloDriver,
@@ -92,6 +95,7 @@ import { TenantContextInterceptor } from "./common/tenant/tenant-context.interce
     { provide: APP_GUARD, useClass: ThrottlerGuard },
     { provide: APP_GUARD, useClass: JwtAuthGuard },
     { provide: APP_GUARD, useClass: TenantGuard },
+    { provide: APP_GUARD, useClass: TenantRateLimitGuard },
     { provide: APP_GUARD, useClass: PermissionsGuard },
   ],
 })
