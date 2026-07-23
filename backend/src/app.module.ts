@@ -6,6 +6,7 @@ import { ApolloDriver, ApolloDriverConfig } from "@nestjs/apollo";
 import { ThrottlerModule, ThrottlerGuard } from "@nestjs/throttler";
 import { join } from "path";
 import { DatabaseModule } from "./database/database.module";
+import { RedisModule } from "./common/redis/redis.module";
 import { PdfModule } from "./common/services/pdf.module";
 import { AuthModule } from "./modules/auth/auth.module";
 import { CrmModule } from "./modules/crm/crm.module";
@@ -54,6 +55,7 @@ import { TransformInterceptor } from "./common/interceptors/transform.intercepto
       { name: "short", ttl: 60000, limit: 100 },
     ]),
     DatabaseModule,
+    RedisModule,
     PdfModule,
     EventsModule,
     GraphqlFeatureModule,

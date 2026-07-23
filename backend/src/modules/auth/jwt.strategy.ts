@@ -3,14 +3,17 @@ import { PassportStrategy } from "@nestjs/passport";
 import { ExtractJwt, Strategy } from "passport-jwt";
 import { ConfigService } from "@nestjs/config";
 import type { JwtPayload } from "@propos/shared-types";
+import { assertJwtSecretsConfigured } from "./jwt-secrets";
 
 @Injectable()
 export class JwtStrategy extends PassportStrategy(Strategy) {
   constructor(configService: ConfigService) {
-    const secret = configService.get<string>("JWT_SECRET");
-    if (!secret) {
-      throw new Error("JWT_SECRET is not configured");
-    }
+    assertJwtSecretsConfigured({
+      NODE_ENV: configService.get<string>("NODE_ENV"),
+      JWT_SECRET: configService.get<string>("JWT_SECRET"),
+      JWT_REFRESH_SECRET: configService.get<string>("JWT_REFRESH_SECRET"),
+    });
+    const secret = configService.get<string>("JWT_SECRET")!;
     super({
       jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
       ignoreExpiration: false,

@@ -6,6 +6,8 @@ import { AuthService } from "./auth.service";
 import { AuthController } from "./auth.controller";
 import { JwtStrategy } from "./jwt.strategy";
 import { TabLoginsModule } from "../admin/tab-logins/tab-logins.module";
+import { LoginLockoutService } from "./login-lockout.service";
+import { assertJwtSecretsConfigured } from "./jwt-secrets";
 
 @Module({
   imports: [
@@ -15,10 +17,12 @@ import { TabLoginsModule } from "../admin/tab-logins/tab-logins.module";
       imports: [ConfigModule],
       inject: [ConfigService],
       useFactory: (configService: ConfigService) => {
-        const secret = configService.get<string>("JWT_SECRET");
-        if (!secret) {
-          throw new Error("JWT_SECRET is not configured");
-        }
+        assertJwtSecretsConfigured({
+          NODE_ENV: configService.get<string>("NODE_ENV"),
+          JWT_SECRET: configService.get<string>("JWT_SECRET"),
+          JWT_REFRESH_SECRET: configService.get<string>("JWT_REFRESH_SECRET"),
+        });
+        const secret = configService.get<string>("JWT_SECRET")!;
         return {
           secret,
           signOptions: {
@@ -30,7 +34,7 @@ import { TabLoginsModule } from "../admin/tab-logins/tab-logins.module";
     }),
   ],
   controllers: [AuthController],
-  providers: [AuthService, JwtStrategy],
+  providers: [AuthService, JwtStrategy, LoginLockoutService],
   exports: [AuthService, JwtModule],
 })
 export class AuthModule {}

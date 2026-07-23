@@ -1,4 +1,5 @@
-import { IsEmail, IsNotEmpty, IsString, MinLength } from "class-validator";
+import { IsEmail, IsNotEmpty, IsString } from "class-validator";
+import { IsStrongPassword } from "../password.policy";
 
 export class LoginDto {
   @IsEmail()
@@ -22,7 +23,7 @@ export class RegisterDto {
   email!: string;
 
   @IsString()
-  @MinLength(8)
+  @IsStrongPassword()
   password!: string;
 
   @IsString()
@@ -38,4 +39,14 @@ export class RefreshTokenDto {
   @IsString()
   @IsNotEmpty()
   refreshToken!: string;
+}
+
+export class ChangePasswordDto {
+  @IsString()
+  @IsNotEmpty()
+  currentPassword!: string;
+
+  @IsString()
+  @IsStrongPassword()
+  newPassword!: string;
 }

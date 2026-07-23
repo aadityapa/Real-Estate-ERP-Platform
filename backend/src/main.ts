@@ -7,8 +7,16 @@ import { join } from "path";
 import { AppModule } from "./app.module";
 import { getCorsOrigins } from "./common/config/cors";
 import { verifyStoragePath } from "./common/utils/crypto";
+import { assertJwtSecretsConfigured } from "./modules/auth/jwt-secrets";
 
 async function bootstrap(): Promise<void> {
+  // Fail fast before DI wiring if production secrets are missing/placeholder.
+  assertJwtSecretsConfigured({
+    NODE_ENV: process.env["NODE_ENV"],
+    JWT_SECRET: process.env["JWT_SECRET"],
+    JWT_REFRESH_SECRET: process.env["JWT_REFRESH_SECRET"],
+  });
+
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
 
   // Security headers (CSP relaxed so the GraphQL sandbox works in dev)

@@ -195,16 +195,22 @@ model RolePermission {
 }
 
 model Session {
-  id           String   @id @default(cuid())
+  id           String    @id @default(cuid())
   userId       String
-  token        String   @unique
-  refreshToken String   @unique
+  /// Shared across refresh rotations; reuse of a revoked token revokes the whole family.
+  familyId     String
+  token        String    @unique
+  refreshToken String    @unique
   expiresAt    DateTime
+  revokedAt    DateTime?
   ipAddress    String?
   userAgent    String?
-  createdAt    DateTime @default(now())
+  createdAt    DateTime  @default(now())
 
   user User @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+  @@index([familyId])
 }
 
 // ============ EMPLOYEE / HRMS ============
