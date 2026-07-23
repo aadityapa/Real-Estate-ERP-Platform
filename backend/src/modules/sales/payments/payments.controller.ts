@@ -3,6 +3,8 @@ import { Response } from "express";
 import { join } from "path";
 import { existsSync } from "fs";
 import { TenantId } from "../../../common/decorators/current-user.decorator";
+import { RequirePermissions } from "../../../common/decorators/auth.decorators";
+import { Permissions } from "../../../common/constants/permissions";
 import { PaymentsService } from "./payments.service";
 import { RecordPaymentDto } from "./dto/payment.dto";
 
@@ -11,6 +13,7 @@ export class PaymentsController {
   constructor(private readonly service: PaymentsService) {}
 
   @Get("booking/:bookingId")
+  @RequirePermissions(Permissions.SALES_PAYMENTS_READ)
   findByBooking(
     @TenantId() tenantId: string,
     @Param("bookingId") bookingId: string,
@@ -19,6 +22,7 @@ export class PaymentsController {
   }
 
   @Post(":id/record")
+  @RequirePermissions(Permissions.SALES_PAYMENTS_WRITE)
   recordPayment(
     @TenantId() tenantId: string,
     @Param("id") id: string,
@@ -28,6 +32,7 @@ export class PaymentsController {
   }
 
   @Get("receipt/:receiptId/pdf")
+  @RequirePermissions(Permissions.SALES_PAYMENTS_READ)
   async downloadReceipt(
     @TenantId() tenantId: string,
     @Param("receiptId") receiptId: string,

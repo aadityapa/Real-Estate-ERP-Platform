@@ -10,11 +10,13 @@ export class EmployeesController {
   constructor(private readonly service: EmployeesService) {}
 
   @Get()
+  @RequirePermissions(Permissions.HR_EMPLOYEES_READ)
   findAll(@TenantId() tenantId: string, @Query() filter: FilterEmployeeDto) {
     return this.service.findAll(tenantId, filter);
   }
 
   @Get(":id")
+  @RequirePermissions(Permissions.HR_EMPLOYEES_READ)
   findOne(@TenantId() tenantId: string, @Param("id") id: string) {
     return this.service.findOne(tenantId, id);
   }

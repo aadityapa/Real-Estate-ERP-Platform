@@ -1,4 +1,4 @@
-import { NotFoundException } from "@nestjs/common";
+import { ForbiddenException, NotFoundException } from "@nestjs/common";
 import { LeadsService } from "./leads.service";
 import {
   createTestTenant,
@@ -162,5 +162,96 @@ describe("LeadsService — tenant scoping", () => {
         where: { id: "lead-1", tenantId: tenantA.id },
       }),
     );
+  });
+
+  describe("object-level lead edit", () => {
+    const assignedLead = {
+      id: "lead-1",
+      tenantId: tenantA.id,
+      assignedToId: userA.id,
+      firstName: "Riya",
+    };
+
+    it("allows a rep to update a lead assigned to them", async () => {
+      prisma.lead.findFirst.mockResolvedValue(assignedLead);
+      prisma.lead.update.mockResolvedValue({ ...assignedLead, status: "CONTACTED" });
+
+      await service.update(
+        tenantA.id,
+        {
+          userId: userA.id,
+          roles: ["Sales Rep"],
+          permissions: ["crm:write:leads"],
+        },
+        "lead-1",
+        { status: "CONTACTED" } as never,
+      );
+
+      expect(prisma.lead.update).toHaveBeenCalled();
+    });
+
+    it("denies a rep updating a lead assigned to someone else", async () => {
+      prisma.lead.findFirst.mockResolvedValue({
+        ...assignedLead,
+        assignedToId: "other-user",
+      });
+
+      await expect(
+        service.update(
+          tenantA.id,
+          {
+            userId: userA.id,
+            roles: ["Sales Rep"],
+            permissions: ["crm:write:leads"],
+          },
+          "lead-1",
+          { status: "CONTACTED" } as never,
+        ),
+      ).rejects.toThrow(ForbiddenException);
+
+      expect(prisma.lead.update).not.toHaveBeenCalled();
+    });
+
+    it("allows Sales Manager to update any lead", async () => {
+      prisma.lead.findFirst.mockResolvedValue({
+        ...assignedLead,
+        assignedToId: "other-user",
+      });
+      prisma.lead.update.mockResolvedValue(assignedLead);
+
+      await service.update(
+        tenantA.id,
+        {
+          userId: userA.id,
+          roles: ["Sales Manager"],
+          permissions: ["crm:write:leads"],
+        },
+        "lead-1",
+        { status: "CONTACTED" } as never,
+      );
+
+      expect(prisma.lead.update).toHaveBeenCalled();
+    });
+
+    it("allows crm:manage:leads holders to update any lead", async () => {
+      prisma.lead.findFirst.mockResolvedValue({
+        ...assignedLead,
+        assignedToId: null,
+      });
+      prisma.lead.update.mockResolvedValue(assignedLead);
+
+      await service.update(
+        tenantA.id,
+        {
+          userId: userA.id,
+          roles: ["Sales Rep"],
+          permissions: ["crm:write:leads", "crm:manage:leads"],
+        },
+        "lead-1",
+        { status: "CONTACTED" } as never,
+      );
+
+      expect(prisma.lead.update).toHaveBeenCalled();
+    });
   });
 });

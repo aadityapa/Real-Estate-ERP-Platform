@@ -1,12 +1,15 @@
 import {
+  ForbiddenException,
   Injectable,
   Logger,
   NotFoundException,
 } from "@nestjs/common";
 import { Prisma } from "@prisma/client";
+import type { JwtPayload } from "@propos/shared-types";
 import { getPaginationParams } from "@propos/shared-utils";
 import { PrismaService } from "../../../database/prisma.service";
 import { paginate } from "../../../common/utils/paginate";
+import { isCrmLeadManager } from "../../../common/constants/permissions";
 import { EventsService } from "../../events/events.service";
 import {
   AssignLeadDto,
@@ -140,8 +143,14 @@ export class LeadsService {
     }
   }
 
-  async update(tenantId: string, userId: string, id: string, dto: UpdateLeadDto) {
-    await this.findOne(tenantId, id);
+  async update(
+    tenantId: string,
+    user: Pick<JwtPayload, "userId" | "roles" | "permissions">,
+    id: string,
+    dto: UpdateLeadDto,
+  ) {
+    const existing = await this.findOne(tenantId, id);
+    this.assertCanEditLead(existing.assignedToId, user);
 
     const lead = await this.prisma.lead.update({
       where: { id },
@@ -156,7 +165,7 @@ export class LeadsService {
     if (dto.status) {
       await this.prisma.activity.create({
         data: {
-          userId,
+          userId: user.userId,
           leadId: id,
           module: "crm",
           action: "status_change",
@@ -167,6 +176,23 @@ export class LeadsService {
     }
 
     return lead;
+  }
+
+  /**
+   * Reps may only edit leads assigned to them; managers (role or crm:manage:leads) may edit any.
+   */
+  assertCanEditLead(
+    assignedToId: string | null,
+    user: Pick<JwtPayload, "userId" | "roles" | "permissions">,
+  ): void {
+    if (isCrmLeadManager(user.roles, user.permissions)) {
+      return;
+    }
+    if (assignedToId !== user.userId) {
+      throw new ForbiddenException(
+        "You can only edit leads assigned to you",
+      );
+    }
   }
 
   async assign(tenantId: string, userId: string, id: string, dto: AssignLeadDto) {
