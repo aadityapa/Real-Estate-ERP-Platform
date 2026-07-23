@@ -1,7 +1,8 @@
 /**
- * Tenant isolation suite (Phase 1.2).
+ * Tenant isolation suite (Phase 1.2 + 3.1).
  *
  * Unit-level: proves each listed service scopes findOne/list by tenantId.
+ * Structural: TenantContext + Prisma extension helpers (Phase 3.1).
  * Full HTTP e2e against two seeded tenants requires TEST_DATABASE_URL
  * (see test/helpers/prisma-test.ts). Those cases are skipped when unset.
  */
@@ -15,6 +16,14 @@ import { ChannelPartnersService } from "../src/modules/channel-partners/channel-
 import { LegalService } from "../src/modules/legal/legal/legal.service";
 import { CampaignsService } from "../src/modules/marketing/campaigns/campaigns.service";
 import { CustomersService } from "../src/modules/customers/customers/customers.service";
+import { TenantContext } from "../src/common/tenant/tenant-context";
+import {
+  injectTenantIntoData,
+  mergeTenantWhere,
+  requireTenantIdOnWrite,
+  TenantScopeError,
+} from "../src/database/tenant-prisma.extension";
+import { isDirectTenantModel } from "../src/database/tenant-models";
 
 type Case = {
   module: string;
@@ -107,6 +116,36 @@ describe.each(cases)(
     });
   },
 );
+
+describe("tenant isolation — structural extension (Phase 3.1)", () => {
+  const tenantContext = new TenantContext();
+
+  it("maps service models to direct-tenant Prisma models", () => {
+    for (const { model } of cases) {
+      const prismaModel = model.charAt(0).toUpperCase() + model.slice(1);
+      expect(isDirectTenantModel(prismaModel)).toBe(true);
+    }
+  });
+
+  it("injects tenantId into where when TenantContext is active", () => {
+    tenantContext.runWithTenant("tenant-a", () => {
+      expect(mergeTenantWhere({ id: "row-1" }, "tenant-a")).toEqual({
+        id: "row-1",
+        tenantId: "tenant-a",
+      });
+      expect(injectTenantIntoData({ name: "Acme" }, "tenant-a")).toEqual({
+        name: "Acme",
+        tenantId: "tenant-a",
+      });
+    });
+  });
+
+  it("rejects create payloads missing tenantId outside bypass", () => {
+    expect(() => requireTenantIdOnWrite({ name: "x" }, "Lead")).toThrow(
+      TenantScopeError,
+    );
+  });
+});
 
 describe("tenant isolation — HTTP e2e (requires TEST_DATABASE_URL)", () => {
   const enabled = Boolean(process.env["TEST_DATABASE_URL"]?.trim());

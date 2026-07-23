@@ -37,6 +37,7 @@ import { GlobalExceptionFilter } from "./common/filters/global-exception.filter"
 import { TransformInterceptor } from "./common/interceptors/transform.interceptor";
 import { AuditModule } from "./common/audit/audit.module";
 import { AuditInterceptor } from "./common/audit/audit.interceptor";
+import { TenantContextInterceptor } from "./common/tenant/tenant-context.interceptor";
 
 @Module({
   imports: [
@@ -86,6 +87,7 @@ import { AuditInterceptor } from "./common/audit/audit.interceptor";
   providers: [
     { provide: APP_FILTER, useClass: GlobalExceptionFilter },
     { provide: APP_INTERCEPTOR, useClass: TransformInterceptor },
+    { provide: APP_INTERCEPTOR, useClass: TenantContextInterceptor },
     { provide: APP_INTERCEPTOR, useClass: AuditInterceptor },
     { provide: APP_GUARD, useClass: ThrottlerGuard },
     { provide: APP_GUARD, useClass: JwtAuthGuard },

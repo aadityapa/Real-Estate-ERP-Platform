@@ -74,8 +74,8 @@ Test Suites: 3 passed | Tests: 17 passed
 
 - `TenantGuard` (global) requires `request.user.tenantId` on non-public routes.
 - Services typically take `tenantId` as a method arg and filter with `findFirst({ where: { id, tenantId } })`.
-- There is **no Prisma middleware/extension** that auto-injects `tenantId`.
-- `TenantGuard` does **not** verify the row belongs to the tenant — only that the JWT has a tenantId.
+- **Phase 3.1:** `TenantContext` ALS + Prisma `tenant-scope` extension auto-injects `tenantId` for direct-tenant models when the JWT interceptor is active; optional Postgres RLS migration is opt-in (no-op until `app.propos_rls=on`). See `docs/TENANT_ISOLATION.md`.
+- `TenantGuard` still does **not** alone verify row ownership — the extension + service filters do.
 
 ### Full scan (288 Prisma call sites — explore audit)
 
@@ -95,7 +95,7 @@ Test Suites: 3 passed | Tests: 17 passed
 | `lms-dashboard/reports/goals` | ~~unscoped counts~~ → `lead: { tenantId }` filters |
 | RBAC / DTOs | `@RequirePermissions` on admin/finance/HR/support; DTOs for support/tab-logins/LMS |
 
-`TenantGuard` only checks JWT has `tenantId` — it does **not** inject Prisma filters. Phase **3.1** Prisma tenant extension still pending.
+`TenantGuard` checks JWT has `tenantId`. Phase **3.1** Prisma tenant extension + opt-in RLS are implemented (`docs/TENANT_ISOLATION.md`).
 
 ---
 
@@ -193,7 +193,7 @@ Placeholder secrets (`change-me-in-production...`) can be used in production tod
 1. **P0** — Backend test harness + coverage gate (`test:cov`, ≥70% threshold path) — Phase 1.1  
 2. **P0** — Tenant-isolation e2e suite for all modules — Phase 1.2  
 3. **P0** — Health/live + ready endpoints + graceful shutdown — Phase 4.2  
-4. **P0** — Prisma tenant middleware/extension — Phase 3.1  
+4. **P0** — Prisma tenant middleware/extension — Phase 3.1 ✅  
 5. **P0** — Upgrade Next.js ≥15.5.21 (and re-audit) — Phase 0.2 remediation  
 6. **P1** — Stop leaking `Error.message` on 500 responses in production — Phase 2.3  
 7. **P1** — Refresh-token rotation + logout + lockout — Phase 2.1  

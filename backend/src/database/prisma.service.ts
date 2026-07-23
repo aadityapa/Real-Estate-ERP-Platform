@@ -1,16 +1,24 @@
 import { Injectable, OnModuleInit, OnModuleDestroy, Logger } from "@nestjs/common";
 import { PrismaClient } from "@prisma/client";
 import { piiEncryptionExtension } from "./pii-prisma.extension";
+import { createTenantScopeExtension } from "./tenant-prisma.extension";
 
+/**
+ * Compose order: PII first, tenant second so query path is
+ * tenant-scope → pii-encryption → engine (tenant injects, then PII encrypts).
+ */
 function createExtendedClient() {
-  return new PrismaClient().$extends(piiEncryptionExtension);
+  return new PrismaClient()
+    .$extends(piiEncryptionExtension)
+    .$extends(createTenantScopeExtension());
 }
 
 type ExtendedClient = ReturnType<typeof createExtendedClient>;
 
 /**
- * Prisma client with transparent PII encrypt/decrypt for Customer.pan,
- * Customer.aadhaar (last-4), and Employee|Vendor.bankDetails.
+ * Prisma client with:
+ * - Transparent PII encrypt/decrypt (Customer.pan/aadhaar, bankDetails)
+ * - Structural tenant scoping via TenantContext ALS (Phase 3.1)
  *
  * Constructor returns a Proxy so existing `prisma.model` calls hit the
  * extended client (including interactive transactions).

@@ -18,6 +18,7 @@
 | **2.2 Authorization / RBAC depth** | Done | Expanded `Permissions` (`module:action:resource`); seeded Super Admin maps; `@RequirePermissions` on HR (employees/attendance/leaves), CRM leads, sales bookings/payments/inventory, legal, documents, vendors (plus prior admin/finance/support); CRM object-level edit (assignee or manager / `crm:manage:leads`); PermissionsGuard + lead denial tests. No new Prisma migration (Permission/RolePermission already existed). |
 | **2.3 Input / output / transport security** | Done | Helmet CSP+HSTS (prod), CORS allowlist (no `*`) + exposed `X-Request-Id`; global Throttler + stricter `@Throttle` on auth (10/min) and documents (30/min); ValidationPipe whitelist/forbid/transform; RFC-7807-style errors keeping `{ success, error }` for clients + `requestId`; request-id + redacted HTTP logs; explicit 1mb body limit; upload filename/MIME/size guards on documents; signed `/storage` URLs only (no public bucket serve). |
 | **2.4 Secrets / audit / PII-at-rest** | Done | Append-only `AuditLog` + DB trigger; `AuditInterceptor` on bookings/payments/ledger/users/documents/legal (field names + value hashes only); AES-256-GCM (`PII_ENCRYPTION_KEY`) for Customer.pan, Aadhaar-last-4, Employee/Vendor.bankDetails via Prisma extension; production boot refuses placeholder JWT/storage/PII secrets. Migration: `20260723090000_audit_log_pii_protection` (deploy: `pnpm --filter @propos/backend exec prisma migrate deploy`). |
+| **3.1 Tenant scoping structurally** | Done | `TenantContext` (ALS) + interceptor from JWT; Prisma `tenant-scope` extension composed with PII extension; direct-tenant model list + global allowlist + relation-scoped docs (`docs/TENANT_ISOLATION.md`); opt-in Postgres RLS migration `20260723140000_tenant_rls_opt_in` (no-op until `app.propos_rls=on`); enforced-client lint test. |
 | 4.2 Health endpoints | Done | live/ready |
 | Next.js bump | Done | 15.5.21 |
 | P0 Customer tenancy / LMS / RBAC / DTOs | Done | See prior commit |
@@ -29,7 +30,7 @@ pnpm --filter @propos/frontend test
 pnpm --filter @propos/backend test:cov
 pnpm --filter @propos/backend exec jest --testPathPattern=auth
 pnpm --filter @propos/backend exec jest --testPathPattern=permissions
-pnpm --filter @propos/backend exec jest --testPathPattern="exception|upload-safety|redact|cors|request-id|pii-crypto|audit|production-secrets"
+pnpm --filter @propos/backend exec jest --testPathPattern="exception|upload-safety|redact|cors|request-id|pii-crypto|audit|production-secrets|tenant"
 pnpm test:e2e   # requires docker-compose.full.yml on :3000/:3001
 node scripts/check-prisma-migration.cjs
 ```
@@ -38,6 +39,6 @@ Branch protection: `docs/CI_BRANCH_PROTECTION.md`
 
 ## Remaining (playbook order)
 
-- **3.x** Prisma tenant extension + per-tenant limits  
+- **3.2** Per-tenant rate limits & BullMQ fairness  
 - **4.1 / 4.3** pino/OTel/Sentry; DR scripts  
 - **5–11** Payments, GST/RERA/DPDP, perf, IaC/CD, SSO, mobile, go-live  
