@@ -227,7 +227,12 @@ export class BookingsService {
       });
 
       if (dto.paymentPlanId) {
-        await this.createInstallments(tx, created.id, dto.paymentPlanId, new Date(dto.bookingDate));
+        await this.createInstallments(
+          tx as unknown as Prisma.TransactionClient,
+          created.id,
+          dto.paymentPlanId,
+          new Date(dto.bookingDate),
+        );
       }
 
       return created;

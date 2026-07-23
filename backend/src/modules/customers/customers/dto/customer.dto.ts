@@ -8,6 +8,8 @@ export class CreateCustomerDto {
   @IsString() @IsNotEmpty() phone!: string;
   @IsOptional() @IsString() alternatePhone?: string;
   @IsOptional() @IsString() pan?: string;
+  /** Full Aadhaar or last-4; only last-4 is stored (encrypted at rest). */
+  @IsOptional() @IsString() aadhaar?: string;
   @IsOptional() @IsObject() address?: Record<string, unknown>;
   @IsOptional() @IsBoolean() portalAccess?: boolean;
 }
@@ -18,6 +20,8 @@ export class UpdateCustomerDto {
   @IsOptional() @IsEmail() email?: string;
   @IsOptional() @IsString() phone?: string;
   @IsOptional() @IsString() alternatePhone?: string;
+  @IsOptional() @IsString() pan?: string;
+  @IsOptional() @IsString() aadhaar?: string;
   @IsOptional() @IsObject() address?: Record<string, unknown>;
   @IsOptional() @IsBoolean() portalAccess?: boolean;
 }

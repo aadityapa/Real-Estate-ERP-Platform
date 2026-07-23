@@ -33,6 +33,31 @@ model Tenant {
   daReports       DaReport[]
   appointments    Appointment[]
   customers       Customer[]
+  auditLogs       AuditLog[]
+}
+
+/// Append-only security audit trail. Diffs store field names + value hashes only (never raw PII).
+model AuditLog {
+  id            String   @id @default(cuid())
+  tenantId      String
+  actorId       String?
+  action        String
+  entity        String
+  entityId      String?
+  /// SHA-256 over sorted "field:valueHash" pairs of prior state (omit on create).
+  beforeHash    String?
+  /// SHA-256 over sorted "field:valueHash" pairs of new state / request body.
+  afterHash     String?
+  changedFields String[] @default([])
+  ip            String?
+  userAgent     String?
+  createdAt     DateTime @default(now())
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+
+  @@index([tenantId, createdAt])
+  @@index([tenantId, entity, entityId])
+  @@index([actorId])
 }
 
 model Company {
@@ -231,6 +256,7 @@ model Employee {
   gender        Gender?
   address       Json?
   documents     Json?
+  /// AES-256-GCM ciphertext string inside Json (enc:v1:…) via Prisma PII extension.
   bankDetails   Json?
   salary        Decimal?
   status        EmployeeStatus @default(ACTIVE)
@@ -777,7 +803,9 @@ model Customer {
   email          String?
   phone          String
   alternatePhone String?
+  /// AES-256-GCM ciphertext (enc:v1:…) — plaintext via Prisma PII extension.
   pan            String?
+  /// Last-4 digits only, AES-256-GCM ciphertext (enc:v1:…). Full Aadhaar is never stored.
   aadhaar        String?
   address        Json?
   documents      Json?
@@ -907,6 +935,7 @@ model Vendor {
   phone       String
   address     Json?
   documents   Json?
+  /// AES-256-GCM ciphertext string inside Json (enc:v1:…) via Prisma PII extension.
   bankDetails Json?
   rating      Decimal?
   status      Status     @default(ACTIVE)

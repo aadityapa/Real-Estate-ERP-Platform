@@ -35,9 +35,12 @@ import { TenantGuard } from "./common/guards/tenant.guard";
 import { PermissionsGuard } from "./common/guards/permissions.guard";
 import { GlobalExceptionFilter } from "./common/filters/global-exception.filter";
 import { TransformInterceptor } from "./common/interceptors/transform.interceptor";
+import { AuditModule } from "./common/audit/audit.module";
+import { AuditInterceptor } from "./common/audit/audit.interceptor";
 
 @Module({
   imports: [
+    AuditModule,
     ConfigModule.forRoot({ isGlobal: true }),
     GraphQLModule.forRoot<ApolloDriverConfig>({
       driver: ApolloDriver,
@@ -83,6 +86,7 @@ import { TransformInterceptor } from "./common/interceptors/transform.intercepto
   providers: [
     { provide: APP_FILTER, useClass: GlobalExceptionFilter },
     { provide: APP_INTERCEPTOR, useClass: TransformInterceptor },
+    { provide: APP_INTERCEPTOR, useClass: AuditInterceptor },
     { provide: APP_GUARD, useClass: ThrottlerGuard },
     { provide: APP_GUARD, useClass: JwtAuthGuard },
     { provide: APP_GUARD, useClass: TenantGuard },

@@ -25,7 +25,7 @@ describe("password.policy", () => {
   });
 });
 
-describe("jwt-secrets", () => {
+describe("jwt-secrets / production-secrets", () => {
   it("fails when secrets are missing", () => {
     expect(() =>
       assertJwtSecretsConfigured({ NODE_ENV: "development" }),
@@ -39,7 +39,7 @@ describe("jwt-secrets", () => {
         JWT_SECRET: JWT_SECRET_PLACEHOLDERS[0],
         JWT_REFRESH_SECRET: "real-refresh-secret-value-here",
       }),
-    ).toThrow(/placeholders/);
+    ).toThrow(/placeholder/);
   });
 
   it("allows placeholders outside production", () => {

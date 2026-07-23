@@ -66,6 +66,7 @@ Unmaintained: none hard-flagged beyond recharts 2.x deprecation notice.
 2. Re-run `pnpm audit`; record remaining highs.
 3. Add CI job `pnpm audit --audit-level=high` (warn → fail later) — Phase 1.4.
 4. Document that production must not use placeholder JWT secrets (boot check — Phase 2.1).
+5. **Phase 2.4 (done):** Append-only `AuditLog`; AES-256-GCM PII-at-rest (`PII_ENCRYPTION_KEY`); production refuses placeholder JWT / storage / PII keys. See migration `20260723090000_audit_log_pii_protection`.
 
 ### Needs testing (days)
 
@@ -88,4 +89,21 @@ Unmaintained: none hard-flagged beyond recharts 2.x deprecation notice.
 - [x] Risky patterns grepped  
 - [x] Remediation grouped by effort  
 
-**Next:** Phase 1.1 test harness (so upgrades can be verified), then apply Next.js bump as first quick win under a dedicated change.
+**Next:** Phase 3.1 tenant scoping structurally (Prisma extension + optional RLS).
+
+---
+
+## 6. Phase 2.4 — Secrets, audit log & data protection (implemented)
+
+| Area | Already present before 2.4 | Added in 2.4 |
+|------|----------------------------|--------------|
+| JWT placeholder boot check | Phase 2.1 (`assertJwtSecretsConfigured`) | Expanded to `STORAGE_URL_SECRET` + `PII_ENCRYPTION_KEY` via `assertProductionSecretsConfigured` |
+| Request PII redaction in logs | Phase 2.3 (`redact.ts`) | Unchanged |
+| Audit trail | None | Append-only `AuditLog` + interceptor on sensitive mutations |
+| PII-at-rest | Plaintext `Customer.pan` / `aadhaar`, Json `bankDetails` | AES-256-GCM (`enc:v1:…`); Aadhaar stored as last-4 only; Prisma extension decrypts for API |
+
+**Migrate when Postgres is up:**
+
+```bash
+pnpm --filter @propos/backend exec prisma migrate deploy
+```
