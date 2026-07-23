@@ -12,7 +12,7 @@ export class CustomersService {
   async findAll(tenantId: string, filter: FilterCustomerDto) {
     const { skip, take, page, limit } = getPaginationParams(filter.page, filter.limit);
     const where: Prisma.CustomerWhereInput = {
-      bookings: { some: { lead: { tenantId } } },
+      tenantId,
       ...(filter.search && {
         OR: [
           { firstName: { contains: filter.search, mode: "insensitive" } },
@@ -34,16 +34,20 @@ export class CustomersService {
 
   async findOne(tenantId: string, id: string) {
     const customer = await this.prisma.customer.findFirst({
-      where: { id, bookings: { some: { lead: { tenantId } } } },
+      where: { id, tenantId },
       include: { bookings: { include: { lead: { select: { id: true, tenantId: true } } } } },
     });
     if (!customer) throw new NotFoundException("Customer not found");
     return customer;
   }
 
-  async create(_tenantId: string, dto: CreateCustomerDto) {
+  async create(tenantId: string, dto: CreateCustomerDto) {
     return this.prisma.customer.create({
-      data: { ...dto, address: dto.address as Prisma.InputJsonValue | undefined },
+      data: {
+        tenantId,
+        ...dto,
+        address: dto.address as Prisma.InputJsonValue | undefined,
+      },
     });
   }
 

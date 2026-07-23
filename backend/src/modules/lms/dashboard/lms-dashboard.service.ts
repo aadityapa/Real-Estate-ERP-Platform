@@ -95,6 +95,7 @@ export class LmsDashboardService {
               attendedBy: user.id,
               status: "COMPLETED",
               completedAt: { gte: start, lte: end },
+              lead: { tenantId },
             },
           }),
           this.prisma.booking.count({

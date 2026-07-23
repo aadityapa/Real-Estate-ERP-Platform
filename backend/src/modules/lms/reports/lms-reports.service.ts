@@ -218,25 +218,32 @@ export class LmsReportsService {
         const [callsMade, leadsContacted, siteVisits, followUpsDone, newLeadsAssigned] =
           await Promise.all([
             this.prisma.callLog.count({
-              where: { userId: user.id, calledAt: { gte: date, lte: dayEnd } },
+              where: {
+                userId: user.id,
+                calledAt: { gte: date, lte: dayEnd },
+                lead: { tenantId },
+              },
             }),
             this.prisma.activity.count({
               where: {
                 userId: user.id,
                 module: "crm",
                 createdAt: { gte: date, lte: dayEnd },
+                lead: { tenantId },
               },
             }),
             this.prisma.siteVisit.count({
               where: {
                 attendedBy: user.id,
                 completedAt: { gte: date, lte: dayEnd },
+                lead: { tenantId },
               },
             }),
             this.prisma.followUp.count({
               where: {
                 userId: user.id,
                 completedAt: { gte: date, lte: dayEnd },
+                lead: { tenantId },
               },
             }),
             this.prisma.lead.count({

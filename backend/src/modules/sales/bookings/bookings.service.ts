@@ -159,15 +159,23 @@ export class BookingsService {
     }
 
     let customerId = dto.customerId;
-    if (!customerId) {
-      const existing = await this.prisma.customer.findUnique({
-        where: { phone: lead.phone },
+    if (customerId) {
+      const owned = await this.prisma.customer.findFirst({
+        where: { id: customerId, tenantId },
+      });
+      if (!owned) {
+        throw new NotFoundException("Customer not found");
+      }
+    } else {
+      const existing = await this.prisma.customer.findFirst({
+        where: { tenantId, phone: lead.phone },
       });
       if (existing) {
         customerId = existing.id;
       } else {
         const customer = await this.prisma.customer.create({
           data: {
+            tenantId,
             firstName: lead.firstName,
             lastName: lead.lastName ?? "",
             email: lead.email,

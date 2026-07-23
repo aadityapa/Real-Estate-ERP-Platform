@@ -2,6 +2,7 @@ import { Body, Controller, Get, Param, Patch, Post, Query } from "@nestjs/common
 import { LmsLeadsService } from "./lms-leads.service";
 import { TenantId, CurrentUser } from "../../../common/decorators/current-user.decorator";
 import type { JwtPayload } from "@propos/shared-types";
+import { DismissLeadDto, UpdateLeadLabelDto } from "./dto/lms-lead.dto";
 
 @Controller("lms/leads")
 export class LmsLeadsController {
@@ -29,7 +30,7 @@ export class LmsLeadsController {
     @TenantId() tenantId: string,
     @Param("id") id: string,
     @CurrentUser() user: JwtPayload,
-    @Body() body: { reason: string; notes?: string },
+    @Body() body: DismissLeadDto,
   ) {
     return this.service.dismiss(tenantId, id, user.userId, body);
   }
@@ -38,7 +39,7 @@ export class LmsLeadsController {
   updateLabel(
     @TenantId() tenantId: string,
     @Param("id") id: string,
-    @Body() body: { leadLabel: string; leadCallStatus?: string },
+    @Body() body: UpdateLeadLabelDto,
   ) {
     return this.service.updateLabel(tenantId, id, body.leadLabel, body.leadCallStatus);
   }

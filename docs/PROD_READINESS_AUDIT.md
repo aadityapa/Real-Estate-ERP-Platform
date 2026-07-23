@@ -83,25 +83,19 @@ Test Suites: 3 passed | Tests: 17 passed
 |---------|-------|
 | yes (tenant in where/data) | 176 |
 | partial (id-only after prior tenant find) | 95 |
-| **no (unscoped)** | **9** |
+| **no (unscoped)** | **0** (was 9; fixed 2026-07-23) |
 | n/a (auth bootstrap) | 8 |
 
-**Confirmed unscoped (P0/P1):**
+**Confirmed unscoped (P0/P1) — FIXED 2026-07-23:**
 
 | File | Issue |
 |------|-------|
-| `customers.service.ts` create | `_tenantId` unused; `Customer` has **no** `tenantId` column |
-| `bookings.service.ts` confirm | Global `customer.findUnique({ phone })` / create — cross-tenant attach risk |
-| `lms-dashboard.service.ts` | `siteVisit.count` by `attendedBy` only |
-| `lms-reports.service.ts` | callLog/activity/siteVisit/followUp counts by userId/attendedBy only |
-| `lms-goals.service.ts` | `siteVisit.count` by `projectId` only |
+| `customers.service.ts` create | ~~no tenantId~~ → `Customer.tenantId` + scoped CRUD |
+| `bookings.service.ts` confirm | ~~global phone lookup~~ → tenant-scoped find/create |
+| `lms-dashboard/reports/goals` | ~~unscoped counts~~ → `lead: { tenantId }` filters |
+| RBAC / DTOs | `@RequirePermissions` on admin/finance/HR/support; DTOs for support/tab-logins/LMS |
 
-`TenantGuard` only checks JWT has `tenantId` — it does **not** inject Prisma filters.
-
-**Also P0 from validation/RBAC audit:** `@RequirePermissions` is never applied (PermissionsGuard is inert); LMS/support/tab-logins use inline `@Body()` without class-validator DTOs.
-
-**Severity:** P0.  
-**Fix:** Customer.tenantId migration + booking phone scoped lookup; fix LMS aggregates; Phase 3.1 Prisma extension; wire `@RequirePermissions`; DTO classes for LMS/support.
+`TenantGuard` only checks JWT has `tenantId` — it does **not** inject Prisma filters. Phase **3.1** Prisma tenant extension still pending.
 
 ---
 

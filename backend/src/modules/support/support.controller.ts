@@ -1,7 +1,14 @@
 import { Body, Controller, Get, Param, Patch, Post, Query } from "@nestjs/common";
 import { SupportService } from "./support.service";
 import { TenantId, CurrentUser } from "../../common/decorators/current-user.decorator";
+import { RequirePermissions } from "../../common/decorators/auth.decorators";
+import { Permissions } from "../../common/constants/permissions";
 import type { JwtPayload } from "@propos/shared-types";
+import {
+  CreateSupportTicketDto,
+  ReplySupportTicketDto,
+  UpdateSupportTicketStatusDto,
+} from "./dto/support.dto";
 
 @Controller("support/tickets")
 export class SupportController {
@@ -23,6 +30,7 @@ export class SupportController {
   }
 
   @Get("admin")
+  @RequirePermissions(Permissions.SUPPORT_ADMIN)
   findAllAdmin(
     @TenantId() tenantId: string,
     @Query("page") page?: string,
@@ -41,28 +49,22 @@ export class SupportController {
   }
 
   @Post()
+  @RequirePermissions(Permissions.SUPPORT_WRITE)
   create(
     @TenantId() tenantId: string,
     @CurrentUser() user: JwtPayload,
-    @Body()
-    body: {
-      subject: string;
-      description: string;
-      category?: string;
-      priority?: string;
-      module?: string;
-      screenshots?: string[];
-    },
+    @Body() body: CreateSupportTicketDto,
   ) {
     return this.service.create(tenantId, user.userId, body);
   }
 
   @Post(":id/reply")
+  @RequirePermissions(Permissions.SUPPORT_WRITE)
   reply(
     @TenantId() tenantId: string,
     @Param("id") id: string,
     @CurrentUser() user: JwtPayload,
-    @Body() body: { message: string; attachments?: string[]; isInternal?: boolean },
+    @Body() body: ReplySupportTicketDto,
   ) {
     return this.service.reply(
       tenantId,
@@ -75,10 +77,11 @@ export class SupportController {
   }
 
   @Patch(":id/status")
+  @RequirePermissions(Permissions.SUPPORT_ADMIN)
   updateStatus(
     @TenantId() tenantId: string,
     @Param("id") id: string,
-    @Body() body: { status: string; resolution?: string },
+    @Body() body: UpdateSupportTicketStatusDto,
   ) {
     return this.service.updateStatus(tenantId, id, body.status, body.resolution);
   }

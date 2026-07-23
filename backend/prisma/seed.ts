@@ -28,6 +28,40 @@ async function main(): Promise<void> {
     },
   });
 
+  const permissionDefs = [
+    { module: "admin", action: "read", resource: "companies" },
+    { module: "admin", action: "write", resource: "companies" },
+    { module: "admin", action: "read", resource: "users" },
+    { module: "admin", action: "write", resource: "users" },
+    { module: "admin", action: "read", resource: "projects" },
+    { module: "admin", action: "write", resource: "projects" },
+    { module: "admin", action: "write", resource: "tab-logins" },
+    { module: "finance", action: "read", resource: "ledger" },
+    { module: "finance", action: "write", resource: "ledger" },
+    { module: "finance", action: "read", resource: "budget" },
+    { module: "finance", action: "write", resource: "budget" },
+    { module: "hr", action: "write", resource: "employees" },
+    { module: "support", action: "admin", resource: "tickets" },
+    { module: "support", action: "write", resource: "tickets" },
+  ];
+
+  for (const def of permissionDefs) {
+    const existing = await prisma.permission.findFirst({ where: def });
+    const permission =
+      existing ??
+      (await prisma.permission.create({ data: def }));
+    await prisma.rolePermission.upsert({
+      where: {
+        roleId_permissionId: {
+          roleId: role.id,
+          permissionId: permission.id,
+        },
+      },
+      update: {},
+      create: { roleId: role.id, permissionId: permission.id },
+    });
+  }
+
   const user = await prisma.user.upsert({
     where: { email: "admin@demo.propos.in" },
     update: {},

@@ -69,11 +69,7 @@ const cases: Case[] = [
     module: "customers",
     model: "customer",
     createService: (prisma) => new CustomersService(prisma as never),
-    // Customer rows are scoped via related booking → lead.tenantId
-    whereShape: (id: string, tenantId: string) => ({
-      id,
-      bookings: { some: { lead: { tenantId } } },
-    }),
+    whereShape: (id: string, tenantId: string) => ({ id, tenantId }),
   },
 ];
 

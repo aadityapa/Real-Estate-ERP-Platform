@@ -80,6 +80,7 @@ export class LmsGoalsService {
             projectId: goal.projectId,
             status: "COMPLETED",
             completedAt: { gte: start, lte: end },
+            lead: { tenantId },
             ...(goal.userId && { attendedBy: goal.userId }),
           },
         }),

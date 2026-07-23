@@ -32,6 +32,7 @@ model Tenant {
   helpdeskTickets HelpdeskTicket[]
   daReports       DaReport[]
   appointments    Appointment[]
+  customers       Customer[]
 }
 
 model Company {
@@ -764,10 +765,11 @@ model Agreement {
 
 model Customer {
   id             String   @id @default(cuid())
+  tenantId       String
   firstName      String
   lastName       String
   email          String?
-  phone          String   @unique
+  phone          String
   alternatePhone String?
   pan            String?
   aadhaar        String?
@@ -778,9 +780,14 @@ model Customer {
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 
+  tenant     Tenant          @relation(fields: [tenantId], references: [id])
   bookings   Booking[]
   complaints Complaint[]
   tickets    SupportTicket[]
+
+  @@unique([tenantId, phone])
+  @@index([tenantId])
+  @@index([createdAt])
 }
 
 model Complaint {
