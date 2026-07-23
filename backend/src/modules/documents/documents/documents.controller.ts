@@ -1,10 +1,13 @@
 import { Body, Controller, Delete, Get, Param, Patch, Post, Query } from "@nestjs/common";
+import { Throttle } from "@nestjs/throttler";
 import { TenantId } from "../../../common/decorators/current-user.decorator";
 import { RequirePermissions } from "../../../common/decorators/auth.decorators";
 import { Permissions } from "../../../common/constants/permissions";
 import { DocumentsService } from "./documents.service";
 import { CreateDocumentDto, FilterDocumentDto, UpdateDocumentDto } from "./dto/document.dto";
 
+/** Stricter than global 100/min — document metadata / future upload traffic. */
+@Throttle({ short: { limit: 30, ttl: 60000 } })
 @Controller("documents")
 export class DocumentsController {
   constructor(private readonly service: DocumentsService) {}

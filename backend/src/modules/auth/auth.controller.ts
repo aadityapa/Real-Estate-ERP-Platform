@@ -38,6 +38,7 @@ function clientMeta(req: AuthenticatedRequest | { ip?: string; headers: Record<s
 }
 
 // Brute-force protection: max 10 attempts/min per IP on auth endpoints
+// (stricter than the global 100/min Throttler default).
 @Throttle({ short: { limit: 10, ttl: 60000 } })
 @Controller("auth")
 export class AuthController {

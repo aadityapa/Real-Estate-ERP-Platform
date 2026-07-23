@@ -9,6 +9,8 @@ export interface ApiResponse<T> {
 
 export interface ApiError {
   success: false;
+  /** Present when the API attaches a correlation id (Phase 2.3). */
+  requestId?: string;
   error: {
     code: string;
     message: string;
