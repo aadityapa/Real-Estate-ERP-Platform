@@ -37,6 +37,9 @@ curl http://localhost:3001/api/v1/health/ready
 
 ## Known P0 follow-ups from audit
 
-- Customers `create` ignores `tenantId` — needs schema/service fix  
+- Customer model has no `tenantId`; booking confirm does global phone lookup — cross-tenant risk  
+- 9 unscoped Prisma sites (LMS dashboard/reports/goals aggregates + customer/booking)  
+- `@RequirePermissions` never applied — RBAC effectively off for authenticated users  
+- LMS/support/tab-logins: inline `@Body()` without class-validator DTOs  
 - No structural Prisma tenant middleware yet  
 - Dependency audit still has residual highs after Next bump — re-run `pnpm audit`

@@ -77,23 +77,31 @@ Test Suites: 3 passed | Tests: 17 passed
 - There is **no Prisma middleware/extension** that auto-injects `tenantId`.
 - `TenantGuard` does **not** verify the row belongs to the tenant — only that the JWT has a tenantId.
 
-### Pattern review (sample of ~250 Prisma call sites across modules)
+### Full scan (288 Prisma call sites — explore audit)
 
-Most list/create paths include `tenantId`. Updates often use `findOne(tenantId, id)` then `update({ where: { id } })` — safe **if** findOne always runs first (e.g. `vendors.service.ts`).
+| scoped? | count |
+|---------|-------|
+| yes (tenant in where/data) | 176 |
+| partial (id-only after prior tenant find) | 95 |
+| **no (unscoped)** | **9** |
+| n/a (auth bootstrap) | 8 |
 
-| File | Method | Scoped? | Notes |
-|------|--------|---------|-------|
-| Most `*.service.ts` list/create | findMany/create | yes | Explicit `tenantId` |
-| Most `findOne` helpers | findFirst | yes | `{ id, tenantId }` |
-| `bookings.service.ts` ~356 | `findUnique({ where: { id } })` | n/a* | Inside private helper after booking create; ID from same tx — low risk but pattern is fragile |
-| `bookings.service.ts` ~351 | `paymentPlan.findUnique({ id })` | **review** | Should confirm plan belongs to tenant |
-| Auth login/user lookup | by email | intentional | Pre-tenant |
-| Prisma updates by `{ id }` after scoped find | update | yes* | Depends on prior findOne — easy to regress |
+**Confirmed unscoped (P0/P1):**
 
-\*Not a confirmed leak today; **structural risk P0** until Prisma extension + isolation tests exist.
+| File | Issue |
+|------|-------|
+| `customers.service.ts` create | `_tenantId` unused; `Customer` has **no** `tenantId` column |
+| `bookings.service.ts` confirm | Global `customer.findUnique({ phone })` / create — cross-tenant attach risk |
+| `lms-dashboard.service.ts` | `siteVisit.count` by `attendedBy` only |
+| `lms-reports.service.ts` | callLog/activity/siteVisit/followUp counts by userId/attendedBy only |
+| `lms-goals.service.ts` | `siteVisit.count` by `projectId` only |
 
-**Severity:** P0 for lack of enforcement + missing isolation tests.  
-**Fix:** Phase 1.2 isolation suite + Phase 3.1 Prisma tenant extension.
+`TenantGuard` only checks JWT has `tenantId` — it does **not** inject Prisma filters.
+
+**Also P0 from validation/RBAC audit:** `@RequirePermissions` is never applied (PermissionsGuard is inert); LMS/support/tab-logins use inline `@Body()` without class-validator DTOs.
+
+**Severity:** P0.  
+**Fix:** Customer.tenantId migration + booking phone scoped lookup; fix LMS aggregates; Phase 3.1 Prisma extension; wire `@RequirePermissions`; DTO classes for LMS/support.
 
 ---
 
