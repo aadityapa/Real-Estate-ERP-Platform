@@ -4,8 +4,10 @@ import { BillingService } from "./billing.service";
 import { BillingAnalyticsService } from "./billing-analytics.service";
 import { RazorpaySubscriptionGateway } from "./gateway/razorpay-subscription.gateway";
 import { SUBSCRIPTION_GATEWAY } from "./gateway/subscription-gateway.interface";
+import { GstModule } from "../finance/gst/gst.module";
 
 @Module({
+  imports: [GstModule],
   controllers: [BillingController],
   providers: [
     BillingService,

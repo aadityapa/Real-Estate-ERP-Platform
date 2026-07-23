@@ -25,6 +25,8 @@ export const SENSITIVE_AUDIT_ROUTES: SensitiveRoute[] = [
   { match: /^\/api\/v1\/sales\/payments\/gateway(?:\/|$)/, entity: "GatewayPayment", idParam: "id" },
   { match: /^\/api\/v1\/sales\/payments(?:\/|$)/, entity: "Payment", idParam: "id" },
   { match: /^\/api\/v1\/finance\/ledger(?:\/|$)/, entity: "LedgerEntry", idParam: "id" },
+  { match: /^\/api\/v1\/finance\/gst(?:\/|$)/, entity: "GSTInvoice", idParam: "id" },
+  { match: /^\/api\/v1\/finance\/tds(?:\/|$)/, entity: "TdsEntry", idParam: "id" },
   { match: /^\/api\/v1\/admin\/users(?:\/|$)/, entity: "User", idParam: "id" },
   { match: /^\/api\/v1\/documents(?:\/|$)/, entity: "Document", idParam: "id" },
   { match: /^\/api\/v1\/legal(?:\/|$)/, entity: "LegalCase", idParam: "id" },

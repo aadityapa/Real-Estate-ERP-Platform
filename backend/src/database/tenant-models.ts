@@ -29,6 +29,7 @@ export const DIRECT_TENANT_MODELS = [
   "Vendor",
   "LedgerEntry",
   "GSTInvoice",
+  "TdsEntry",
   "Document",
   "Campaign",
   "ChannelPartner",

@@ -25,7 +25,8 @@ Prices (integer paise): see `PLAN_LIMIT_DEFAULTS` in
 3. **Cancel** — `POST /api/v1/billing/cancel` (default at period end).
 4. **Webhooks** — `POST /api/v1/billing/webhook` verifies HMAC, dedupes by
    `GatewayWebhookEvent(provider, eventId)`:
-   - `subscription.charged` / `activated` → ACTIVE + `SaasInvoice` (GST deferred)
+   - `subscription.charged` / `activated` → ACTIVE + `SaasInvoice` + linked
+     `GSTInvoice` when `PROPOS_SUPPLIER_GSTIN` is set (Phase 6.1)
    - `subscription.pending` / `halted` → dunning (`PAST_DUE` → `HALTED` after 3)
    - `subscription.cancelled` / `completed` → CANCELLED + churn analytics
 5. **Analytics** — structured log events: `billing.usage_snapshot`,
@@ -87,7 +88,8 @@ pnpm --filter @propos/backend exec prisma migrate deploy
 If Postgres is down (e.g. `localhost:51218`), apply when the DB is up. Do not use
 `db push` for shared environments.
 
-GST-compliant tax invoices / IRN: Phase 6.1 (`taxNote` placeholder on `SaasInvoice`).
+GST-compliant tax invoices / IRN: Phase 6.1 — see `docs/GST_EINVOICING.md`.
+Paid SaaS invoices link to `GSTInvoice` when `PROPOS_SUPPLIER_GSTIN` is configured.
 
 ## Frontend admin page
 

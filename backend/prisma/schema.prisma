@@ -39,6 +39,8 @@ model Tenant {
   gatewayRefunds    GatewayRefund[]
   gatewayWebhookEvents GatewayWebhookEvent[]
   saasInvoices      SaasInvoice[]
+  gstInvoices       GSTInvoice[]
+  tdsEntries        TdsEntry[]
 }
 
 /// Per-tenant limit overrides (null fields fall back to plan defaults). Basis for Phase 5 billing.
@@ -94,6 +96,8 @@ model Company {
   tenantId  String
   name      String
   gstin     String?
+  /// GST state code (2 digits). Derived from GSTIN when omitted.
+  stateCode String?
   pan       String?
   rera      String?
   logo      String?
@@ -102,10 +106,11 @@ model Company {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  tenant    Tenant     @relation(fields: [tenantId], references: [id])
-  projects  Project[]
-  branches  Branch[]
-  employees Employee[]
+  tenant      Tenant       @relation(fields: [tenantId], references: [id])
+  projects    Project[]
+  branches    Branch[]
+  employees   Employee[]
+  gstInvoices GSTInvoice[]
 
   @@index([tenantId])
   @@index([status])
@@ -1184,27 +1189,103 @@ model LedgerEntry {
   @@index([createdAt])
 }
 
+/// GST tax invoice (sales/purchase). Amounts in integer paise (INR).
 model GSTInvoice {
-  id            String        @id @default(cuid())
-  invoiceNumber String        @unique
-  tenantId      String
-  vendorId      String?
-  customerId    String?
-  type          InvoiceType
-  items         Json
-  subtotal      Decimal
-  cgst          Decimal       @default(0)
-  sgst          Decimal       @default(0)
-  igst          Decimal       @default(0)
-  totalGST      Decimal
-  totalAmount   Decimal
-  invoiceDate   DateTime
-  dueDate       DateTime?
-  status        InvoiceStatus @default(DRAFT)
-  createdAt     DateTime      @default(now())
+  id                String         @id @default(cuid())
+  tenantId          String
+  companyId         String?
+  /// Statutory number: PREFIX/FY/SEQ (unique per tenant).
+  invoiceNumber     String
+  type              InvoiceType
+  status            InvoiceStatus  @default(DRAFT)
+  /// Line items: [{description, hsnSac, quantity, unitPricePaise, taxablePaise, gstRateBps}]
+  items             Json
+  supplierGstin     String
+  supplierStateCode String
+  buyerGstin        String?
+  buyerStateCode    String
+  buyerName         String?
+  placeOfSupply     String
+  customerId        String?
+  vendorId          String?
+  /// Optional link to PropOS SaaS invoice (Phase 5.2).
+  saasInvoiceId     String?        @unique
+  /// Optional link to booking payment receipt (Phase 5.1).
+  receiptId         String?
+  taxablePaise      BigInt
+  cgstPaise         BigInt         @default(0)
+  sgstPaise         BigInt         @default(0)
+  igstPaise         BigInt         @default(0)
+  totalGstPaise     BigInt
+  totalPaise        BigInt
+  currency          String         @default("INR")
+  invoiceDate       DateTime
+  dueDate           DateTime?
+  /// e.g. "2025-26"
+  fiscalYear        String
+  seriesPrefix      String         @default("INV")
+  /// GST e-invoice (IRN / signed QR) via pluggable IRP adapter.
+  irn               String?        @unique
+  irnAckNo          String?
+  irnAckDate        DateTime?
+  signedQr          String?
+  eInvoiceStatus    EInvoiceStatus @default(NOT_APPLICABLE)
+  eInvoiceProvider  String?
+  eInvoiceError     String?
+  createdAt         DateTime       @default(now())
+  updatedAt         DateTime       @updatedAt
+
+  tenant      Tenant       @relation(fields: [tenantId], references: [id])
+  company     Company?     @relation(fields: [companyId], references: [id])
+  saasInvoice SaasInvoice? @relation(fields: [saasInvoiceId], references: [id])
+  tdsEntries  TdsEntry[]
+
+  @@unique([tenantId, invoiceNumber])
+  @@index([tenantId])
+  @@index([tenantId, status])
+  @@index([tenantId, fiscalYear])
+  @@index([tenantId, invoiceDate])
+  @@index([eInvoiceStatus])
+  @@index([createdAt])
+}
+
+/// TDS deduction / return row. Amounts in integer paise.
+model TdsEntry {
+  id                 String    @id @default(cuid())
+  tenantId           String
+  /// IT section e.g. 194IA, 194C, 194J, 194Q
+  section            String
+  deducteeType       String
+  deducteeName       String
+  /// Last-4 or encrypted PAN reference — never log full PAN with name.
+  deducteePanLast4   String?
+  vendorId           String?
+  customerId         String?
+  vendorPaymentId    String?
+  paymentId          String?
+  gstInvoiceId       String?
+  paymentAmountPaise BigInt
+  /// Rate in basis points (100 = 1%).
+  tdsRateBps         Int
+  tdsAmountPaise     BigInt
+  netPayablePaise    BigInt
+  deductDate         DateTime
+  challanNumber      String?
+  challanDate        DateTime?
+  /// Q1–Q4 of the Indian FY
+  quarter            String
+  fiscalYear         String
+  status             TdsStatus @default(ACCRUED)
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+
+  tenant     Tenant      @relation(fields: [tenantId], references: [id])
+  gstInvoice GSTInvoice? @relation(fields: [gstInvoiceId], references: [id])
 
   @@index([tenantId])
-  @@index([status])
+  @@index([tenantId, fiscalYear, quarter])
+  @@index([tenantId, section])
+  @@index([tenantId, status])
   @@index([createdAt])
 }
 
@@ -1473,13 +1554,13 @@ model Subscription {
   @@index([status])
 }
 
-/// PropOS SaaS invoice (GST IRN/QR deferred to Phase 6). Amounts in integer paise.
+/// PropOS SaaS invoice. Amounts in integer paise. GST detail on linked GSTInvoice.
 model SaasInvoice {
   id                 String            @id @default(cuid())
   tenantId           String
   subscriptionId     String
   invoiceNumber      String            @unique
-  /// Integer paise (INR).
+  /// Integer paise (INR) — gross inclusive of GST when GST invoice linked.
   amountPaise        BigInt
   currency           String            @default("INR")
   status             SaasInvoiceStatus @default(OPEN)
@@ -1487,7 +1568,7 @@ model SaasInvoice {
   periodEnd          DateTime
   providerInvoiceId  String?           @unique
   providerPaymentId  String?
-  /// Placeholder for Phase 6 GST fields (GSTIN, HSN/SAC, CGST/SGST/IGST).
+  /// Human note; structured GST lives on GSTInvoice.
   taxNote            String?
   paidAt             DateTime?
   createdAt          DateTime          @default(now())
@@ -1495,6 +1576,7 @@ model SaasInvoice {
 
   tenant       Tenant       @relation(fields: [tenantId], references: [id])
   subscription Subscription @relation(fields: [subscriptionId], references: [id])
+  gstInvoice   GSTInvoice?
 
   @@index([tenantId])
   @@index([subscriptionId])
@@ -1804,6 +1886,20 @@ enum InvoiceStatus {
   PAID
   OVERDUE
   CANCELLED
+}
+
+enum EInvoiceStatus {
+  NOT_APPLICABLE
+  PENDING
+  GENERATED
+  CANCELLED
+  FAILED
+}
+
+enum TdsStatus {
+  ACCRUED
+  DEPOSITED
+  REPORTED
 }
 
 enum DocumentCategory {

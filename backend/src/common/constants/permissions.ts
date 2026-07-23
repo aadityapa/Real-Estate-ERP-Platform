@@ -24,6 +24,10 @@ export const Permissions = {
   FINANCE_LEDGER_WRITE: "finance:write:ledger",
   FINANCE_BUDGET_READ: "finance:read:budget",
   FINANCE_BUDGET_WRITE: "finance:write:budget",
+  FINANCE_GST_READ: "finance:read:gst",
+  FINANCE_GST_WRITE: "finance:write:gst",
+  FINANCE_TDS_READ: "finance:read:tds",
+  FINANCE_TDS_WRITE: "finance:write:tds",
 
   HR_EMPLOYEES_READ: "hr:read:employees",
   HR_EMPLOYEES_WRITE: "hr:write:employees",

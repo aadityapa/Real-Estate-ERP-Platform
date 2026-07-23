@@ -4,6 +4,7 @@ import {
   Injectable,
   Logger,
   NotFoundException,
+  Optional,
   UnauthorizedException,
 } from "@nestjs/common";
 import { createHash } from "crypto";
@@ -33,6 +34,8 @@ import type {
   ChangePlanDto,
   StartSubscriptionDto,
 } from "./dto/billing.dto";
+import { GstInvoiceService } from "../finance/gst/gst-invoice.service";
+import { stateCodeFromGstin } from "../finance/gst/tax-compute";
 
 const MAX_DUNNING_ATTEMPTS = 3;
 
@@ -82,6 +85,7 @@ export class BillingService {
     private readonly analytics: BillingAnalyticsService,
     @Inject(SUBSCRIPTION_GATEWAY)
     private readonly gateway: SubscriptionGateway,
+    @Optional() private readonly gstInvoices?: GstInvoiceService,
   ) {}
 
   listPlans() {
@@ -533,7 +537,7 @@ export class BillingService {
     if (args.invoiceId || args.paymentId) {
       const invoiceNumber = await this.nextInvoiceNumber(args.tenantId);
       try {
-        await this.prisma.saasInvoice.create({
+        const saasInv = await this.prisma.saasInvoice.create({
           data: {
             tenantId: args.tenantId,
             subscriptionId: sub.id,
@@ -544,9 +548,15 @@ export class BillingService {
             periodEnd,
             providerInvoiceId: args.invoiceId ?? null,
             providerPaymentId: args.paymentId ?? null,
-            taxNote: "GST fields deferred to Phase 6",
+            taxNote: "GST via linked GSTInvoice (Phase 6.1)",
             paidAt: new Date(),
           },
+        });
+        await this.maybeCreateGstForSaasInvoice({
+          tenantId: args.tenantId,
+          saasInvoiceId: saasInv.id,
+          saasInvoiceNumber: invoiceNumber,
+          amountPaise,
         });
       } catch (err) {
         if (
@@ -693,6 +703,60 @@ export class BillingService {
     const seq = String(count + 1).padStart(5, "0");
     const y = new Date().getFullYear();
     return `PROPOS-${y}-${tenantId.slice(-6).toUpperCase()}-${seq}`;
+  }
+
+  /**
+   * Attach a GST tax invoice (and optional mock IRN) to a paid SaaS invoice.
+   * Supplier GSTIN from PROPOS_SUPPLIER_GSTIN; buyer from tenant company.
+   */
+  private async maybeCreateGstForSaasInvoice(args: {
+    tenantId: string;
+    saasInvoiceId: string;
+    saasInvoiceNumber: string;
+    amountPaise: bigint;
+  }) {
+    if (!this.gstInvoices) return;
+    const supplierGstin = process.env["PROPOS_SUPPLIER_GSTIN"]?.trim();
+    if (!supplierGstin) {
+      this.logger.debug(
+        "PROPOS_SUPPLIER_GSTIN unset — skipping SaaS GST invoice",
+      );
+      return;
+    }
+    try {
+      const company = await this.prisma.company.findFirst({
+        where: { tenantId: args.tenantId, status: "ACTIVE" },
+        orderBy: { createdAt: "asc" },
+      });
+      const buyerState =
+        company?.stateCode ??
+        (company?.gstin ? stateCodeFromGstin(company.gstin) : null) ??
+        process.env["PROPOS_DEFAULT_BUYER_STATE"] ??
+        stateCodeFromGstin(supplierGstin);
+
+      await this.gstInvoices.createFromSaasInvoice({
+        tenantId: args.tenantId,
+        saasInvoiceId: args.saasInvoiceId,
+        saasInvoiceNumber: args.saasInvoiceNumber,
+        amountPaise: args.amountPaise,
+        supplierGstin,
+        supplierStateCode:
+          process.env["PROPOS_SUPPLIER_STATE_CODE"] ??
+          stateCodeFromGstin(supplierGstin),
+        buyerGstin: company?.gstin,
+        buyerStateCode: buyerState,
+        buyerName: company?.name,
+        companyId: company?.id,
+        requestEInvoice:
+          (process.env["GST_AUTO_EINVOICE"] ?? "true").toLowerCase() === "true",
+      });
+    } catch (err) {
+      this.logger.warn(
+        `GST invoice for SaaS ${args.saasInvoiceId} failed: ${
+          err instanceof Error ? err.message : "unknown"
+        }`,
+      );
+    }
   }
 }
 
