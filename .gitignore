@@ -46,6 +46,10 @@ apps/api/prisma/*.db-journal
 storage/
 apps/api/storage/
 
+# Database backups (Phase 4.3)
+backups/
+*.dump
+
 # Mobile
 apps/mobile/.expo
 apps/mobile/dist

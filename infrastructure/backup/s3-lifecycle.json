@@ -1,0 +1,28 @@
+{
+  "Rules": [
+    {
+      "ID": "AbortIncompleteMultipartUpload",
+      "Status": "Enabled",
+      "Filter": { "Prefix": "" },
+      "AbortIncompleteMultipartUpload": {
+        "DaysAfterInitiation": 7
+      }
+    },
+    {
+      "ID": "ExpireNoncurrentVersions",
+      "Status": "Enabled",
+      "Filter": { "Prefix": "" },
+      "NoncurrentVersionExpiration": {
+        "NoncurrentDays": 90
+      }
+    },
+    {
+      "ID": "ExpireOldDatabaseBackups",
+      "Status": "Enabled",
+      "Filter": { "Prefix": "backups/postgres/" },
+      "Expiration": {
+        "Days": 30
+      }
+    }
+  ]
+}

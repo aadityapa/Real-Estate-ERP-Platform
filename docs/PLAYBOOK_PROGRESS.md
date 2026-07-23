@@ -21,7 +21,8 @@
 | **3.1 Tenant scoping structurally** | Done | `TenantContext` (ALS) + interceptor from JWT; Prisma `tenant-scope` extension composed with PII extension; direct-tenant model list + global allowlist + relation-scoped docs (`docs/TENANT_ISOLATION.md`); opt-in Postgres RLS migration `20260723140000_tenant_rls_opt_in` (no-op until `app.propos_rls=on`); enforced-client lint test. |
 | **3.2 Per-tenant limits & fairness** | Done | Plan defaults (STARTER/GROWTH/ENTERPRISE) + `TenantLimits` overrides; Redis per-tenant API RPM (`TenantRateLimitGuard`); seats/storage enforcement on user/document create; BullMQ `propos-tenant-jobs` + Redis concurrency semaphore; admin `GET/PATCH /admin/usage`; k6 `scripts/k6/tenant-fairness.js`; docs `docs/TENANT_LIMITS.md`. Migration: `20260723160000_tenant_limits` (`prisma migrate deploy` when DB up). |
 | **4.1 Structured logging / tracing / metrics** | Done | pino JSON via nestjs-pino (`requestId`+`tenantId` mixin, PII/secret redact); OTel OTLP (`OTEL_ENABLED`, HTTP/Prisma/Redis auto + BullMQ spans); Prometheus `GET /metrics` (`METRICS_ENABLED`+`METRICS_TOKEN`); Sentry/GlitchTip backend + Next.js (DSN opt-in, tenant tags, PII scrub). Docs: `docs/OBSERVABILITY.md`. |
-| 4.2 Health endpoints | Done | live/ready |
+| **4.2 Health endpoints** | Done | live/ready |
+| **4.3 Backups, DR & data lifecycle** | Done | RPO 15m / RTO 4h; `scripts/backup.sh` + `restore.sh` + `verify-restore.sh`; S3 lifecycle JSON; tenant `GET/DELETE /admin/lifecycle` (export + hard-delete with S3/local purge + AuditLog erasure GUC). Docs: `docs/DR_RUNBOOK.md`. Migration: `20260723180000_audit_log_erasure_allow` (`prisma migrate deploy` when DB up). |
 | Next.js bump | Done | 15.5.21 |
 | P0 Customer tenancy / LMS / RBAC / DTOs | Done | See prior commit |
 
@@ -32,14 +33,15 @@ pnpm --filter @propos/frontend test
 pnpm --filter @propos/backend test:cov
 pnpm --filter @propos/backend exec jest --testPathPattern=auth
 pnpm --filter @propos/backend exec jest --testPathPattern=permissions
-pnpm --filter @propos/backend exec jest --testPathPattern="exception|upload-safety|redact|cors|request-id|pii-crypto|audit|production-secrets|tenant|limits|plan-defaults|pino|metrics|tracing|sentry"
+pnpm --filter @propos/backend exec jest --testPathPattern="exception|upload-safety|redact|cors|request-id|pii-crypto|audit|production-secrets|tenant|limits|plan-defaults|pino|metrics|tracing|sentry|retention|storage-keys|tenant-delete|storage-purger"
 pnpm test:e2e   # requires docker-compose.full.yml on :3000/:3001
 node scripts/check-prisma-migration.cjs
+# DR (needs Postgres client or compose postgres):
+#   ./scripts/backup.sh && ./scripts/verify-restore.sh backups/propos-*.dump
 ```
 
 Branch protection: `docs/CI_BRANCH_PROTECTION.md`
 
 ## Remaining (playbook order)
 
-- **4.3** DR scripts / runbook  
 - **5–11** Payments, GST/RERA/DPDP, perf, IaC/CD, SSO, mobile, go-live  

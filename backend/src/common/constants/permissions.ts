@@ -12,6 +12,10 @@ export const Permissions = {
   ADMIN_TAB_LOGINS_WRITE: "admin:write:tab-logins",
   ADMIN_USAGE_READ: "admin:read:usage",
   ADMIN_USAGE_WRITE: "admin:write:usage",
+  /** DPDP / GDPR tenant data-portability export. */
+  ADMIN_LIFECYCLE_EXPORT: "admin:export:tenant",
+  /** DPDP / GDPR tenant hard-delete (right to erasure). */
+  ADMIN_LIFECYCLE_DELETE: "admin:delete:tenant",
 
   FINANCE_LEDGER_READ: "finance:read:ledger",
   FINANCE_LEDGER_WRITE: "finance:write:ledger",

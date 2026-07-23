@@ -4,6 +4,7 @@ import { ProjectsModule } from "./projects/projects.module";
 import { UsersModule } from "./users/users.module";
 import { TabLoginsModule } from "./tab-logins/tab-logins.module";
 import { UsageModule } from "./usage/usage.module";
+import { LifecycleModule } from "./lifecycle/lifecycle.module";
 
 @Module({
   imports: [
@@ -12,6 +13,7 @@ import { UsageModule } from "./usage/usage.module";
     UsersModule,
     TabLoginsModule,
     UsageModule,
+    LifecycleModule,
   ],
 })
 export class AdminModule {}
