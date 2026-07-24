@@ -26,6 +26,9 @@ describe("AuthService", () => {
       findUnique: MockFn;
       update: MockFn;
     };
+    tenant: {
+      findUnique: MockFn;
+    };
   };
   let jwtService: { sign: MockFn };
   let configService: { get: MockFn };
@@ -62,6 +65,9 @@ describe("AuthService", () => {
         findUniqueOrThrow: jest.fn().mockResolvedValue(user),
         findUnique: jest.fn(),
         update: jest.fn().mockResolvedValue(user),
+      },
+      tenant: {
+        findUnique: jest.fn().mockResolvedValue({ ssoOnly: false }),
       },
     };
     jwtService = {

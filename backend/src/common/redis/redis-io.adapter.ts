@@ -51,7 +51,7 @@ export class RedisIoAdapter extends IoAdapter {
     }
   }
 
-  createIOServer(port: number, options?: ServerOptions) {
+  override createIOServer(port: number, options?: ServerOptions) {
     const server = super.createIOServer(port, options);
     if (this.adapterConstructor) {
       server.adapter(this.adapterConstructor);
@@ -59,7 +59,7 @@ export class RedisIoAdapter extends IoAdapter {
     return server;
   }
 
-  async close(): Promise<void> {
+  override async close(): Promise<void> {
     await Promise.all([
       this.pubClient?.quit().catch(() => undefined),
       this.subClient?.quit().catch(() => undefined),

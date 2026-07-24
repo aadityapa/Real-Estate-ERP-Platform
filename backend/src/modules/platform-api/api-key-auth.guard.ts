@@ -21,10 +21,11 @@ export class ApiKeyAuthGuard implements CanActivate {
       apiKey?: { keyId: string; scopes: string[] };
     }>();
 
+    const authorization = req.headers["authorization"];
     const header =
       req.headers["x-api-key"] ??
-      (req.headers.authorization?.startsWith("Bearer pos_")
-        ? req.headers.authorization.slice(7)
+      (authorization?.startsWith("Bearer pos_")
+        ? authorization.slice(7)
         : undefined);
 
     if (!header) {

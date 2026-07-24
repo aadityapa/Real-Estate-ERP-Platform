@@ -68,6 +68,7 @@ describe("tenant model classification", () => {
       "Permission",
       "ConsentPurpose",
       "GatewayWebhookEvent",
+      "FeatureFlag",
     ]);
   });
 });
