@@ -1,0 +1,264 @@
+# CD — build, scan, staging deploy, manual prod promote (Phase 8.3)
+name: CD
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      promote_prod:
+        description: "Promote current main images to production"
+        type: boolean
+        default: false
+      allow_destructive_migration:
+        description: "Set true only when a destructive Prisma migration is approved"
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+  packages: write
+  id-token: write
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_API: ghcr.io/${{ github.repository_owner }}/propos-api
+  IMAGE_WEB: ghcr.io/${{ github.repository_owner }}/propos-web
+
+jobs:
+  release-meta:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.semver.outputs.version }}
+      changelog: ${{ steps.changelog.outputs.changelog }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Next semver (patch)
+        id: semver
+        run: |
+          latest=$(git describe --tags --abbrev=0 2>/dev/null || echo "v0.0.0")
+          IFS=. read -r maj min pat <<< "${latest#v}"
+          pat=$((pat + 1))
+          echo "version=v${maj}.${min}.${pat}" >> "$GITHUB_OUTPUT"
+      - name: Changelog since last tag
+        id: changelog
+        run: |
+          latest=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
+          if [ -z "$latest" ]; then
+            body=$(git log --pretty=format:'- %s (%h)' -n 20)
+          else
+            body=$(git log ${latest}..HEAD --pretty=format:'- %s (%h)')
+          fi
+          {
+            echo "changelog<<EOF"
+            echo "$body"
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
+
+  build-scan-push:
+    needs: release-meta
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Build & push API
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: backend/Dockerfile
+          push: true
+          tags: |
+            ${{ env.IMAGE_API }}:${{ needs.release-meta.outputs.version }}
+            ${{ env.IMAGE_API }}:staging
+            ${{ env.IMAGE_API }}:sha-${{ github.sha }}
+      - name: Build & push web
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: frontend/Dockerfile
+          push: true
+          build-args: |
+            NEXT_PUBLIC_API_URL=${{ vars.NEXT_PUBLIC_API_URL_STAGING }}
+            NEXT_PUBLIC_WS_URL=${{ vars.NEXT_PUBLIC_WS_URL_STAGING }}
+          tags: |
+            ${{ env.IMAGE_WEB }}:${{ needs.release-meta.outputs.version }}
+            ${{ env.IMAGE_WEB }}:staging
+            ${{ env.IMAGE_WEB }}:sha-${{ github.sha }}
+      - name: Trivy API
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          image-ref: ${{ env.IMAGE_API }}:${{ needs.release-meta.outputs.version }}
+          format: json
+          output: trivy-api.json
+          severity: HIGH,CRITICAL
+          exit-code: "0"
+      - name: Trivy web
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          image-ref: ${{ env.IMAGE_WEB }}:${{ needs.release-meta.outputs.version }}
+          format: json
+          output: trivy-web.json
+          severity: HIGH,CRITICAL
+          exit-code: "0"
+      - run: |
+          node scripts/trivy-gate.cjs trivy-api.json
+          node scripts/trivy-gate.cjs trivy-web.json
+
+  migrate-gate:
+    needs: [release-meta, build-scan-push]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Detect destructive migrations
+        id: destr
+        run: |
+          if rg -n "DROP |TRUNCATE |ALTER TABLE .* DROP" backend/prisma/migrations -g '*.sql'; then
+            echo "destructive=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "destructive=false" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Block unapproved destructive migration
+        if: steps.destr.outputs.destructive == 'true' && inputs.allow_destructive_migration != true
+        run: |
+          echo "Destructive SQL detected. Re-run with allow_destructive_migration=true after review."
+          exit 1
+      - name: Run migrate task on staging (ECS)
+        if: ${{ vars.CD_ECS_ENABLED == 'true' }}
+        env:
+          AWS_REGION: ${{ vars.AWS_REGION }}
+        run: |
+          # Requires OIDC role AWS_ROLE_TO_ASSUME and terraform outputs as vars.
+          aws ecs run-task \
+            --cluster "${{ vars.ECS_CLUSTER_STAGING }}" \
+            --task-definition "${{ vars.ECS_MIGRATE_TASK_STAGING }}" \
+            --launch-type FARGATE \
+            --network-configuration "awsvpcConfiguration={subnets=[${{ vars.ECS_SUBNETS_STAGING }}],securityGroups=[${{ vars.ECS_SG_STAGING }}],assignPublicIp=DISABLED}"
+        continue-on-error: false
+
+  deploy-staging:
+    needs: [release-meta, build-scan-push, migrate-gate]
+    runs-on: ubuntu-latest
+    environment: staging
+    steps:
+      - name: Configure AWS
+        if: ${{ vars.CD_ECS_ENABLED == 'true' }}
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
+          aws-region: ${{ vars.AWS_REGION }}
+      - name: Rolling update staging
+        if: ${{ vars.CD_ECS_ENABLED == 'true' }}
+        run: |
+          aws ecs update-service --cluster "${{ vars.ECS_CLUSTER_STAGING }}" \
+            --service "${{ vars.ECS_SERVICE_API_STAGING }}" \
+            --force-new-deployment
+          aws ecs update-service --cluster "${{ vars.ECS_CLUSTER_STAGING }}" \
+            --service "${{ vars.ECS_SERVICE_WEB_STAGING }}" \
+            --force-new-deployment
+          aws ecs wait services-stable --cluster "${{ vars.ECS_CLUSTER_STAGING }}" \
+            --services "${{ vars.ECS_SERVICE_API_STAGING }}" "${{ vars.ECS_SERVICE_WEB_STAGING }}"
+      - name: Smoke
+        run: |
+          BASE="${{ vars.STAGING_BASE_URL }}"
+          if [ -z "$BASE" ]; then echo "STAGING_BASE_URL unset — skip smoke"; exit 0; fi
+          curl -sf "$BASE/api/v1/health/live"
+          curl -sf "$BASE/api/v1/health/ready" || true
+      - name: Placeholder when ECS not wired
+        if: ${{ vars.CD_ECS_ENABLED != 'true' }}
+        run: |
+          echo "Images pushed: ${{ env.IMAGE_API }}:${{ needs.release-meta.outputs.version }}"
+          echo "Set repository variable CD_ECS_ENABLED=true and AWS_* vars to enable live deploy."
+
+  e2e-staging:
+    needs: deploy-staging
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9.15.0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm exec playwright install --with-deps chromium
+      - name: E2E against staging
+        env:
+          PLAYWRIGHT_BASE_URL: ${{ vars.STAGING_WEB_URL }}
+          PLAYWRIGHT_API_URL: ${{ vars.STAGING_BASE_URL }}/api/v1
+        run: |
+          if [ -z "$PLAYWRIGHT_BASE_URL" ]; then echo "skip e2e"; exit 0; fi
+          pnpm test:e2e
+
+  approve-prod:
+    needs: [release-meta, e2e-staging]
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - run: echo "Production promotion approved for ${{ needs.release-meta.outputs.version }}"
+
+  deploy-prod:
+    needs: [release-meta, approve-prod]
+    if: github.event_name == 'workflow_dispatch' && inputs.promote_prod == true || github.event_name == 'push'
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - name: Tag release
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const tag = '${{ needs.release-meta.outputs.version }}';
+            const body = `## ${tag}\n\n${{ needs.release-meta.outputs.changelog }}`;
+            try {
+              await github.rest.git.createRef({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                ref: `refs/tags/${tag}`,
+                sha: context.sha,
+              });
+            } catch (e) {
+              console.log('tag may exist', e.message);
+            }
+            await github.rest.repos.createRelease({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              tag_name: tag,
+              name: tag,
+              body,
+            });
+      - name: Retag images as prod
+        run: |
+          echo "Promote ${{ needs.release-meta.outputs.version }} → :prod / :latest via registry (manual or crane)."
+          echo "When CD_ECS_ENABLED=true, update ECS services to this tag (blue/green via circuit breaker)."
+      - name: Deploy prod ECS
+        if: ${{ vars.CD_ECS_ENABLED == 'true' && (github.event_name == 'workflow_dispatch' && inputs.promote_prod == true) }}
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
+          aws-region: ${{ vars.AWS_REGION }}
+      - name: Rolling update prod
+        if: ${{ vars.CD_ECS_ENABLED == 'true' && github.event_name == 'workflow_dispatch' && inputs.promote_prod == true }}
+        run: |
+          aws ecs update-service --cluster "${{ vars.ECS_CLUSTER_PROD }}" \
+            --service "${{ vars.ECS_SERVICE_API_PROD }}" --force-new-deployment
+          aws ecs update-service --cluster "${{ vars.ECS_CLUSTER_PROD }}" \
+            --service "${{ vars.ECS_SERVICE_WEB_PROD }}" --force-new-deployment
+          aws ecs wait services-stable --cluster "${{ vars.ECS_CLUSTER_PROD }}" \
+            --services "${{ vars.ECS_SERVICE_API_PROD }}" "${{ vars.ECS_SERVICE_WEB_PROD }}"
+
+# Required secrets / vars (names only):
+# secrets: GITHUB_TOKEN (built-in), AWS_ROLE_TO_ASSUME
+# vars: CD_ECS_ENABLED, AWS_REGION, ECS_CLUSTER_STAGING, ECS_CLUSTER_PROD,
+#       ECS_SERVICE_API_STAGING, ECS_SERVICE_WEB_STAGING, ECS_SERVICE_API_PROD, ECS_SERVICE_WEB_PROD,
+#       ECS_MIGRATE_TASK_STAGING, ECS_SUBNETS_STAGING, ECS_SG_STAGING,
+#       STAGING_BASE_URL, STAGING_WEB_URL, NEXT_PUBLIC_API_URL_STAGING, NEXT_PUBLIC_WS_URL_STAGING
+# GitHub Environments: staging (auto), production (required reviewers)
