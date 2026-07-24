@@ -436,6 +436,15 @@ model Lead {
   @@index([assignedToId])
   @@index([claimedById])
   @@index([leadLabel])
+  /// CRM / LMS list + dashboard filters (Phase 7.1)
+  @@index([tenantId, isArchived, createdAt])
+  @@index([tenantId, isArchived, status])
+  @@index([tenantId, isArchived, source])
+  @@index([tenantId, assignedToId, isArchived])
+  @@index([tenantId, projectId, isArchived])
+  @@index([tenantId, feedScore, createdAt])
+  @@index([tenantId, claimedById, claimedAt])
+  @@index([tenantId, isArchived, updatedAt])
 }
 
 model FollowUp {
@@ -453,6 +462,9 @@ model FollowUp {
 
   lead Lead @relation(fields: [leadId], references: [id])
   user User @relation(fields: [userId], references: [id])
+
+  @@index([leadId, scheduledAt])
+  @@index([status, scheduledAt])
 }
 
 model CallLog {
@@ -468,6 +480,8 @@ model CallLog {
 
   lead Lead @relation(fields: [leadId], references: [id])
   user User @relation(fields: [userId], references: [id])
+
+  @@index([leadId, calledAt])
 }
 
 model SiteVisit {
@@ -485,6 +499,10 @@ model SiteVisit {
   lead       Lead        @relation(fields: [leadId], references: [id])
   project    Project     @relation(fields: [projectId], references: [id])
   ypsrReport YpsrReport?
+
+  @@index([leadId, scheduledAt])
+  @@index([status, completedAt])
+  @@index([attendedBy, status, completedAt])
 }
 
 // ============ LMS MODULE ============
@@ -737,6 +755,8 @@ model Unit {
   tower    Tower?    @relation(fields: [towerId], references: [id])
   building Building? @relation(fields: [buildingId], references: [id])
   booking  Booking?
+
+  @@index([projectId, status])
 }
 
 model Booking {
@@ -771,6 +791,8 @@ model Booking {
 
   @@index([status])
   @@index([createdAt])
+  @@index([salesPersonId, createdAt])
+  @@index([status, createdAt])
 }
 
 model PaymentPlan {

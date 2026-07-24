@@ -16,6 +16,7 @@ export class LmsDataFeedController {
     @Query("source") source?: string,
     @Query("projectId") projectId?: string,
     @Query("search") search?: string,
+    @Query("cursor") cursor?: string,
   ) {
     return this.service.getFeed(
       tenantId,
@@ -25,6 +26,7 @@ export class LmsDataFeedController {
       source,
       projectId,
       search,
+      cursor,
     );
   }
 

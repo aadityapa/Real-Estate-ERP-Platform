@@ -61,6 +61,10 @@ export class LmsDashboardService {
     };
   }
 
+  /**
+   * Leaderboard without N+1: 3 groupBy aggregations + 1 user fetch
+   * (was 1 + 3×N queries per active user).
+   */
   async getLeaderboard(
     tenantId: string,
     month?: number,
@@ -73,54 +77,79 @@ export class LmsDashboardService {
     const start = new Date(y, m - 1, 1);
     const end = new Date(y, m, 0, 23, 59, 59);
 
+    const leadWhere: Prisma.LeadWhereInput = {
+      tenantId,
+      assignedToId: { not: null },
+      isArchived: false,
+      createdAt: { gte: start, lte: end },
+      ...(projectId && { projectId }),
+    };
+
+    const [leadGroups, visitGroups, bookingGroups] = await Promise.all([
+      this.prisma.lead.groupBy({
+        by: ["assignedToId"],
+        where: leadWhere,
+        _count: { id: true },
+      }),
+      this.prisma.siteVisit.groupBy({
+        by: ["attendedBy"],
+        where: {
+          attendedBy: { not: null },
+          status: "COMPLETED",
+          completedAt: { gte: start, lte: end },
+          lead: { tenantId },
+        },
+        _count: { id: true },
+      }),
+      this.prisma.booking.groupBy({
+        by: ["salesPersonId"],
+        where: {
+          createdAt: { gte: start, lte: end },
+          lead: { tenantId, ...(projectId && { projectId }) },
+        },
+        _count: { id: true },
+      }),
+    ]);
+
+    const leadCountByUser = new Map(
+      leadGroups
+        .filter((g) => g.assignedToId)
+        .map((g) => [g.assignedToId as string, g._count.id]),
+    );
+    const visitCountByUser = new Map(
+      visitGroups
+        .filter((g) => g.attendedBy)
+        .map((g) => [g.attendedBy as string, g._count.id]),
+    );
+    const bookingCountByUser = new Map(
+      bookingGroups.map((g) => [g.salesPersonId, g._count.id]),
+    );
+
+    const userIds = [...new Set([...leadCountByUser.keys()])];
+    if (userIds.length === 0) return [];
+
     const users = await this.prisma.user.findMany({
-      where: { tenantId, status: "ACTIVE" },
+      where: { tenantId, status: "ACTIVE", id: { in: userIds } },
       select: { id: true, firstName: true, lastName: true, avatar: true },
     });
 
-    const entries = await Promise.all(
-      users.map(async (user) => {
-        const leadWhere: Prisma.LeadWhereInput = {
-          tenantId,
-          assignedToId: user.id,
-          isArchived: false,
-          createdAt: { gte: start, lte: end },
-          ...(projectId && { projectId }),
-        };
+    const entries = users.map((user) => {
+      const totalLeads = leadCountByUser.get(user.id) ?? 0;
+      const siteVisits = visitCountByUser.get(user.id) ?? 0;
+      const bookings = bookingCountByUser.get(user.id) ?? 0;
+      const conversionRate =
+        totalLeads > 0 ? Math.round((bookings / totalLeads) * 1000) / 10 : 0;
 
-        const [totalLeads, siteVisits, bookings] = await Promise.all([
-          this.prisma.lead.count({ where: leadWhere }),
-          this.prisma.siteVisit.count({
-            where: {
-              attendedBy: user.id,
-              status: "COMPLETED",
-              completedAt: { gte: start, lte: end },
-              lead: { tenantId },
-            },
-          }),
-          this.prisma.booking.count({
-            where: {
-              lead: { tenantId, ...(projectId && { projectId }) },
-              salesPersonId: user.id,
-              createdAt: { gte: start, lte: end },
-            },
-          }),
-        ]);
-
-        const conversionRate =
-          totalLeads > 0 ? Math.round((bookings / totalLeads) * 1000) / 10 : 0;
-
-        return {
-          userId: user.id,
-          name: `${user.firstName} ${user.lastName}`,
-          avatar: user.avatar,
-          totalLeads,
-          siteVisits,
-          bookings,
-          conversionRate,
-        };
-      }),
-    );
+      return {
+        userId: user.id,
+        name: `${user.firstName} ${user.lastName}`,
+        avatar: user.avatar,
+        totalLeads,
+        siteVisits,
+        bookings,
+        conversionRate,
+      };
+    });
 
     return entries
       .filter((e) => e.totalLeads > 0)
@@ -128,6 +157,7 @@ export class LmsDashboardService {
       .map((entry, index) => ({ ...entry, rank: index + 1 }));
   }
 
+  /** Single groupBy instead of one count per funnel stage. */
   async getFunnel(tenantId: string, projectId?: string) {
     const statuses = [
       "NEW",
@@ -139,22 +169,24 @@ export class LmsDashboardService {
       "REGISTRATION",
     ] as const;
 
-    const counts = await Promise.all(
-      statuses.map((status) =>
-        this.prisma.lead.count({
-          where: {
-            tenantId,
-            status,
-            isArchived: false,
-            ...(projectId && { projectId }),
-          },
-        }),
-      ),
+    const groups = await this.prisma.lead.groupBy({
+      by: ["status"],
+      where: {
+        tenantId,
+        isArchived: false,
+        status: { in: [...statuses] },
+        ...(projectId && { projectId }),
+      },
+      _count: { id: true },
+    });
+
+    const countByStatus = new Map(
+      groups.map((g) => [g.status, g._count.id] as const),
     );
 
-    return statuses.map((stage, i) => ({
+    return statuses.map((stage) => ({
       stage,
-      count: counts[i] ?? 0,
+      count: countByStatus.get(stage) ?? 0,
     }));
   }
 

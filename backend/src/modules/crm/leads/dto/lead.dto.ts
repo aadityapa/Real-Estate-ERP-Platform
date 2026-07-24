@@ -187,6 +187,11 @@ export class FilterLeadDto extends PaginationDto {
   @IsOptional()
   @IsString()
   projectId?: string;
+
+  /** Cursor (lead id) for keyset pagination — preferred over page for large lists. */
+  @IsOptional()
+  @IsString()
+  cursor?: string;
 }
 
 export class AssignLeadDto {

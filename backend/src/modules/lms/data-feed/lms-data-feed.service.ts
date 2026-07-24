@@ -6,6 +6,7 @@ import {
 } from "@nestjs/common";
 import { getPaginationParams } from "@propos/shared-utils";
 import { PrismaService } from "../../../database/prisma.service";
+import { cursorPaginate } from "../../../common/utils/cursor-paginate";
 import { paginate } from "../../../common/utils/paginate";
 import { EventsService } from "../../events/events.service";
 
@@ -24,8 +25,12 @@ export class LmsDataFeedService {
     source?: string,
     projectId?: string,
     search?: string,
+    cursor?: string,
   ) {
-    const { skip, take } = getPaginationParams(page, limit);
+    const { skip, take, page: safePage, limit: safeLimit } = getPaginationParams(
+      page,
+      limit,
+    );
 
     const where = {
       tenantId,
@@ -42,31 +47,57 @@ export class LmsDataFeedService {
       ...(status === "CLAIMED" && { assignedToId: { not: null } }),
     };
 
+    const orderBy = [
+      { feedScore: "desc" as const },
+      { createdAt: "desc" as const },
+      { id: "desc" as const },
+    ];
+
+    const feedInclude = {
+      project: { select: { id: true, name: true } },
+      assignedTo: { select: { id: true, firstName: true, lastName: true } },
+      claimedBy: { select: { id: true, firstName: true, lastName: true } },
+    };
+
+    const enrich = <T extends { assignedToId: string | null; createdAt: Date }>(
+      items: T[],
+    ) =>
+      items.map((lead) => ({
+        ...lead,
+        claimStatus: lead.assignedToId ? "CLAIMED" : "UNCLAIMED",
+        minutesSinceCreation: Math.floor(
+          (Date.now() - lead.createdAt.getTime()) / 60000,
+        ),
+        isAging:
+          !lead.assignedToId &&
+          Date.now() - lead.createdAt.getTime() > 30 * 60000,
+      }));
+
+    if (cursor) {
+      const rows = await this.prisma.lead.findMany({
+        where,
+        take: take + 1,
+        skip: 1,
+        cursor: { id: cursor },
+        orderBy,
+        include: feedInclude,
+      });
+      const pageResult = cursorPaginate(rows, take, (r) => r.id);
+      return { ...pageResult, data: enrich(pageResult.data) };
+    }
+
     const [items, total] = await Promise.all([
       this.prisma.lead.findMany({
         where,
         skip,
         take,
-        orderBy: [{ feedScore: "desc" }, { createdAt: "desc" }],
-        include: {
-          project: { select: { id: true, name: true } },
-          assignedTo: { select: { id: true, firstName: true, lastName: true } },
-          claimedBy: { select: { id: true, firstName: true, lastName: true } },
-        },
+        orderBy,
+        include: feedInclude,
       }),
       this.prisma.lead.count({ where }),
     ]);
 
-    const enriched = items.map((lead) => ({
-      ...lead,
-      claimStatus: lead.assignedToId ? "CLAIMED" : "UNCLAIMED",
-      minutesSinceCreation: Math.floor(
-        (Date.now() - lead.createdAt.getTime()) / 60000,
-      ),
-      isAging: !lead.assignedToId && Date.now() - lead.createdAt.getTime() > 30 * 60000,
-    }));
-
-    return paginate(enriched, total, page, limit);
+    return paginate(enrich(items), total, safePage, safeLimit);
   }
 
   async getMyClaimed(tenantId: string, userId: string) {
@@ -84,6 +115,7 @@ export class LmsDataFeedService {
         project: { select: { id: true, name: true } },
       },
       orderBy: { claimedAt: "desc" },
+      take: 100,
     });
   }
 

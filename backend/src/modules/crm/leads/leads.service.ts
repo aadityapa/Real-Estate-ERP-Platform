@@ -8,7 +8,14 @@ import { Prisma } from "@prisma/client";
 import type { JwtPayload } from "@propos/shared-types";
 import { getPaginationParams } from "@propos/shared-utils";
 import { PrismaService } from "../../../database/prisma.service";
-import { paginate } from "../../../common/utils/paginate";
+import {
+  cursorPaginate,
+  type CursorPaginatedResult,
+} from "../../../common/utils/cursor-paginate";
+import {
+  paginate,
+  type PaginatedResult,
+} from "../../../common/utils/paginate";
 import { isCrmLeadManager } from "../../../common/constants/permissions";
 import { EventsService } from "../../events/events.service";
 import {
@@ -26,6 +33,17 @@ const leadInclude = {
   _count: { select: { followUps: true, siteVisits: true } },
 } satisfies Prisma.LeadInclude;
 
+type LeadListItem = Prisma.LeadGetPayload<{ include: typeof leadInclude }>;
+
+const LEAD_SORT_FIELDS = new Set([
+  "createdAt",
+  "updatedAt",
+  "status",
+  "source",
+  "score",
+  "firstName",
+]);
+
 @Injectable()
 export class LeadsService {
   private readonly logger = new Logger(LeadsService.name);
@@ -35,13 +53,11 @@ export class LeadsService {
     private readonly eventsService: EventsService,
   ) {}
 
-  async findAll(tenantId: string, filter: FilterLeadDto) {
-    const { skip, take, page, limit } = getPaginationParams(
-      filter.page,
-      filter.limit,
-    );
-
-    const where: Prisma.LeadWhereInput = {
+  private buildListWhere(
+    tenantId: string,
+    filter: FilterLeadDto,
+  ): Prisma.LeadWhereInput {
+    return {
       tenantId,
       isArchived: false,
       ...(filter.status && { status: filter.status }),
@@ -57,13 +73,46 @@ export class LeadsService {
         ],
       }),
     };
+  }
+
+  async findAll(
+    tenantId: string,
+    filter: FilterLeadDto & { cursor: string },
+  ): Promise<CursorPaginatedResult<LeadListItem>>;
+  async findAll(
+    tenantId: string,
+    filter: FilterLeadDto,
+  ): Promise<PaginatedResult<LeadListItem>>;
+  async findAll(
+    tenantId: string,
+    filter: FilterLeadDto,
+  ): Promise<PaginatedResult<LeadListItem> | CursorPaginatedResult<LeadListItem>> {
+    const where = this.buildListWhere(tenantId, filter);
+    const sortBy = LEAD_SORT_FIELDS.has(filter.sortBy ?? "")
+      ? (filter.sortBy as string)
+      : "createdAt";
+    const order = filter.order ?? "desc";
+    const { take, page, limit } = getPaginationParams(filter.page, filter.limit);
+
+    // Cursor / keyset path — 1 query (no COUNT); stable for deep lists.
+    if (filter.cursor) {
+      const rows = await this.prisma.lead.findMany({
+        where,
+        take: take + 1,
+        skip: 1,
+        cursor: { id: filter.cursor },
+        orderBy: [{ [sortBy]: order }, { id: order }],
+        include: leadInclude,
+      });
+      return cursorPaginate(rows, take, (r) => r.id);
+    }
 
     const [items, total] = await Promise.all([
       this.prisma.lead.findMany({
         where,
-        skip,
+        skip: (page - 1) * take,
         take,
-        orderBy: { [filter.sortBy ?? "createdAt"]: filter.order ?? "desc" },
+        orderBy: [{ [sortBy]: order }, { id: order }],
         include: leadInclude,
       }),
       this.prisma.lead.count({ where }),
@@ -227,7 +276,16 @@ export class LeadsService {
     });
   }
 
+  /**
+   * CRM dashboard — fixed 5 parallel aggregations (no per-row loops).
+   * Relies on Lead (tenantId,isArchived,*) and FollowUp/SiteVisit (leadId,scheduledAt) indexes.
+   */
   async getDashboardStats(tenantId: string) {
+    const dayStart = new Date();
+    dayStart.setHours(0, 0, 0, 0);
+    const dayEnd = new Date();
+    dayEnd.setHours(23, 59, 59, 999);
+
     const [total, bySource, byStatus, todayFollowUps, siteVisitsToday] =
       await Promise.all([
         this.prisma.lead.count({ where: { tenantId, isArchived: false } }),
@@ -244,19 +302,13 @@ export class LeadsService {
         this.prisma.followUp.count({
           where: {
             lead: { tenantId },
-            scheduledAt: {
-              gte: new Date(new Date().setHours(0, 0, 0, 0)),
-              lt: new Date(new Date().setHours(23, 59, 59, 999)),
-            },
+            scheduledAt: { gte: dayStart, lt: dayEnd },
           },
         }),
         this.prisma.siteVisit.count({
           where: {
             lead: { tenantId },
-            scheduledAt: {
-              gte: new Date(new Date().setHours(0, 0, 0, 0)),
-              lt: new Date(new Date().setHours(23, 59, 59, 999)),
-            },
+            scheduledAt: { gte: dayStart, lt: dayEnd },
           },
         }),
       ]);

@@ -66,6 +66,60 @@ describe("LeadsService — tenant scoping", () => {
     });
   });
 
+  it("findAll with cursor uses keyset pagination (no count)", async () => {
+    prisma.lead.findMany.mockResolvedValue([
+      { id: "lead-2" },
+      { id: "lead-3" },
+    ]);
+
+    const result = await service.findAll(tenantA.id, {
+      cursor: "lead-1",
+      limit: 1,
+    });
+
+    expect(prisma.lead.count).not.toHaveBeenCalled();
+    expect(prisma.lead.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({ tenantId: tenantA.id }),
+        cursor: { id: "lead-1" },
+        skip: 1,
+        take: 2,
+      }),
+    );
+    expect(result).toMatchObject({
+      data: [{ id: "lead-2" }],
+      meta: { hasMore: true, nextCursor: "lead-2", mode: "cursor" },
+    });
+  });
+
+  it("getDashboardStats runs a fixed parallel set scoped by tenant", async () => {
+    prisma.lead.count.mockResolvedValue(10);
+    prisma.lead.groupBy
+      .mockResolvedValueOnce([{ source: "WEBSITE", _count: { id: 10 } }])
+      .mockResolvedValueOnce([{ status: "BOOKING", _count: { id: 2 } }]);
+    prisma.followUp.count.mockResolvedValue(3);
+    prisma.siteVisit.count.mockResolvedValue(1);
+
+    const stats = await service.getDashboardStats(tenantA.id);
+
+    expect(prisma.lead.count).toHaveBeenCalledWith({
+      where: { tenantId: tenantA.id, isArchived: false },
+    });
+    expect(prisma.followUp.count).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          lead: { tenantId: tenantA.id },
+        }),
+      }),
+    );
+    expect(stats).toMatchObject({
+      totalLeads: 10,
+      followUpsToday: 3,
+      siteVisitsToday: 1,
+      conversionRate: 20,
+    });
+  });
+
   it("findOne scopes by tenant and throws when missing", async () => {
     prisma.lead.findFirst.mockResolvedValue(null);
     await expect(service.findOne(tenantA.id, "lead-x")).rejects.toThrow(
