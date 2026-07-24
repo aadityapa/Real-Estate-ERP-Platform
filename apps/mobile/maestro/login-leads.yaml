@@ -1,0 +1,19 @@
+appId: com.nexovo.propos
+---
+- launchApp
+- tapOn:
+    id: "go-login"
+- assertVisible:
+    id: "login-screen"
+- tapOn:
+    id: "login-email"
+- inputText: "demo@propos.local"
+- tapOn:
+    id: "login-password"
+- inputText: "ChangeMe123!"
+- tapOn:
+    id: "login-submit"
+- extendedWaitUntil:
+    visible:
+      id: "leads-screen"
+    timeout: 15000

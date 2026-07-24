@@ -1,5 +1,5 @@
-import { View, Text, StyleSheet, ScrollView } from "react-native";
-import { Link } from "expo-router";
+import { View, Text, StyleSheet, ScrollView, Pressable } from "react-native";
+import { Link, router } from "expo-router";
 
 const modules = [
   { title: "CRM Leads", href: "/leads" },
@@ -12,6 +12,13 @@ export default function HomeScreen(): React.ReactElement {
     <ScrollView style={styles.container}>
       <Text style={styles.title}>PropOS Mobile</Text>
       <Text style={styles.subtitle}>Field sales & site operations</Text>
+      <Pressable
+        testID="go-login"
+        style={styles.card}
+        onPress={() => router.push("/login")}
+      >
+        <Text style={styles.cardTitle}>Sign in</Text>
+      </Pressable>
       {modules.map((m) => (
         <Link key={m.href} href={m.href} style={styles.card}>
           <Text style={styles.cardTitle}>{m.title}</Text>

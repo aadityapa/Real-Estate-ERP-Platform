@@ -53,3 +53,10 @@ backups/
 # Mobile
 apps/mobile/.expo
 apps/mobile/dist
+apps/mobile/secrets/
+*.jks
+google-play-service-account.json
+
+# Pitch decks / binaries (do not commit)
+PropOS_Pitch_Deck.pptx
+*.pptx

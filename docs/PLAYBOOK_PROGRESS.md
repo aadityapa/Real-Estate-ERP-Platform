@@ -36,6 +36,9 @@
 | **9.1 SSO / SAML / SCIM** | Done | `TenantIdpConfig` + `ssoOnly`; OIDC callback + SAML ACS (mock JSON + soft XML); JIT provisioning; SCIM 2.0 Users CRUD; password login blocked when SSO-only. Migration `20260724120000_enterprise_sso_admin_api`. |
 | **9.2 Admin console, flags & impersonation** | Done | `/platform/*` (tenants, audit view, feature flags, impersonation start/end with AuditLog + banner/TTL); `lms_clash_detection` flag gates clash list. |
 | **9.3 Public API & webhooks** | Done | Tenant API keys (hashed, scoped, rotatable); webhooks for lead.created (+ signing/retry); Swagger UI at `/api/docs`; OpenAPI via `@nestjs/swagger`. |
+| **10.1 Mobile production build & OTA** | Done | EAS profiles + submit config; Expo Updates channels; SecureStore tokens; Sentry RN; cert-pin helper; login+leads screens; Maestro smoke; docs `docs/MOBILE_RELEASE.md`. `eas build --profile preview` not run (no Expo project credentials on agent). |
+| **11.1 Go-live runbook** | Done | `docs/GO_LIVE_CHECKLIST.md` + `docs/ARCHITECTURE_FOR_DILIGENCE.md`. |
+| **11.2 Security review** | Done | `docs/SECURITY_REVIEW.md` (OWASP API Top 10 findings + fix task list; report-only). |
 | Next.js bump | Done | 15.5.21 |
 | P0 Customer tenancy / LMS / RBAC / DTOs | Done | See prior commit |
 
@@ -60,4 +63,4 @@ Branch protection: `docs/CI_BRANCH_PROTECTION.md`
 
 ## Remaining (playbook order)
 
-- **10–11** Mobile release, go-live checklist, security review  
+- _(none — playbook phases 0–11 complete)_  
