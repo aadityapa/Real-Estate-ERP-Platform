@@ -1,0 +1,4 @@
+# Trivy allowlist (Phase 8.1) — CVE IDs or package@version that are accepted risk.
+# Format: one entry per line. Empty = fail on all HIGH/CRITICAL.
+# Example:
+# CVE-2024-0000

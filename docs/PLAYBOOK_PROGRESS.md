@@ -30,6 +30,7 @@
 | **6.3 DPDP Act 2023 / data residency** | Done | `ConsentPurpose` + `CustomerConsent` + `DataSubjectRequest`; customer export/correct/erase under `/privacy/*`; residency guards (`DATA_RESIDENCY_REGION`/`AWS_REGION` → `ap-south-1`); docs `docs/DPDP_COMPLIANCE.md`. Migration: `20260723230000_dpdp_consent_residency` (`prisma migrate deploy` when DB up). |
 | **7.1 Database performance** | Done | Composite Lead/FollowUp/SiteVisit/Booking/Unit indexes; CRM + LMS cursor pagination; LMS leaderboard/funnel N+1 → groupBy; Prisma `connection_limit`/`pool_timeout` + PgBouncer flag; non-prod slow-query log; docs `docs/DB_PERF.md`. Migration: `20260724100000_db_perf_indexes` (`prisma migrate deploy` when DB up). |
 | **7.2 Caching, realtime & load testing** | Done | Redis `CacheService` (stampede SET NX + namespace version invalidation) on CRM dashboard, LMS KPIs, inventory availability; Socket.IO `RedisIoAdapter`; atomic LMS claim (`SET NX` + `updateMany`); tenant-scoped data-feed join auth; k6 scripts `login`/`crm-list`/`booking-create`/`realtime-feed`; docs `docs/LOAD_TEST.md`. |
+| **8.1 Container & image hardening** | Done | Multi-stage non-root Dockerfiles (API + Next standalone); `.dockerignore`; Trivy CI gate + allowlist; `docker-compose.prod.yml` + Caddy TLS; docs `docs/CONTAINER_HARDENING.md`. |
 | Next.js bump | Done | 15.5.21 |
 | P0 Customer tenancy / LMS / RBAC / DTOs | Done | See prior commit |
 
@@ -54,4 +55,4 @@ Branch protection: `docs/CI_BRANCH_PROTECTION.md`
 
 ## Remaining (playbook order)
 
-- **8.1–11** Infra/CD, SSO, mobile, go-live  
+- **8.2–11** IaC/CD, SSO, mobile, go-live  
