@@ -2,12 +2,14 @@ import { Injectable, NotFoundException } from "@nestjs/common";
 import { Prisma } from "@prisma/client";
 import { CacheService } from "../../../common/redis/cache.service";
 import { PrismaService } from "../../../database/prisma.service";
+import { FeatureFlagService } from "../../platform/feature-flag.service";
 
 @Injectable()
 export class LmsDashboardService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly cache: CacheService,
+    private readonly featureFlags: FeatureFlagService,
   ) {}
 
   async getCounters(tenantId: string, projectId?: string, dateFrom?: string, dateTo?: string) {
@@ -254,6 +256,12 @@ export class LmsDashboardService {
   }
 
   async getClashLeads(tenantId: string, status?: string) {
+    const enabled = await this.featureFlags.isEnabled(
+      tenantId,
+      "lms_clash_detection",
+    );
+    if (!enabled) return [];
+
     return this.prisma.clashLead.findMany({
       where: {
         tenantId,

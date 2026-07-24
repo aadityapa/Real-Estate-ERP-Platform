@@ -45,6 +45,9 @@ import { LimitsModule } from "./common/limits/limits.module";
 import { TenantRateLimitGuard } from "./common/limits/tenant-rate-limit.guard";
 import { FeatureFlagsGuard } from "./common/limits/feature-flags.guard";
 import { BillingModule } from "./modules/billing/billing.module";
+import { SsoModule } from "./modules/sso/sso.module";
+import { PlatformModule } from "./modules/platform/platform.module";
+import { PlatformApiModule } from "./modules/platform-api/platform-api.module";
 
 @Module({
   imports: [
@@ -73,6 +76,9 @@ import { BillingModule } from "./modules/billing/billing.module";
     EventsModule,
     GraphqlFeatureModule,
     AuthModule,
+    SsoModule,
+    PlatformModule,
+    PlatformApiModule,
     CrmModule,
     SalesModule,
     AdminModule,

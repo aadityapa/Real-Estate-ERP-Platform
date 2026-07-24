@@ -44,6 +44,7 @@ describe("LmsDashboardService — query shape (Phase 7.1)", () => {
         getOrSet: jest.fn(async (_key, producer) => producer()),
         invalidate: jest.fn(),
       } as never,
+      { isEnabled: jest.fn().mockResolvedValue(true) } as never,
     );
   });
 

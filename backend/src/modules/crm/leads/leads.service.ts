@@ -19,6 +19,7 @@ import {
 import { isCrmLeadManager } from "../../../common/constants/permissions";
 import { CacheService } from "../../../common/redis/cache.service";
 import { EventsService } from "../../events/events.service";
+import { WebhooksService } from "../../platform-api/api-keys.service";
 import {
   AssignLeadDto,
   CreateLeadDto,
@@ -53,6 +54,7 @@ export class LeadsService {
     private readonly prisma: PrismaService,
     private readonly eventsService: EventsService,
     private readonly cache: CacheService,
+    private readonly webhooks: WebhooksService,
   ) {}
 
   private buildListWhere(
@@ -188,6 +190,14 @@ export class LeadsService {
       });
 
       await this.cache.invalidate(tenantId, "crm", "lms");
+
+      void this.webhooks
+        .dispatch(tenantId, "lead.created", {
+          id: lead.id,
+          firstName: lead.firstName,
+          source: lead.source,
+        })
+        .catch(() => undefined);
 
       return lead;
     } catch (error) {

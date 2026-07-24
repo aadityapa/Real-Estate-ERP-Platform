@@ -132,6 +132,22 @@ async function bootstrap(): Promise<void> {
     }),
   );
 
+  if (process.env["SWAGGER_ENABLED"] !== "false") {
+    const { DocumentBuilder, SwaggerModule } = await import("@nestjs/swagger");
+    const swaggerConfig = new DocumentBuilder()
+      .setTitle("PropOS API")
+      .setDescription(
+        "Tenant-scoped REST API (v1). Authenticate with JWT Bearer or `pos_` API keys.",
+      )
+      .setVersion("1.0")
+      .addBearerAuth()
+      .addApiKey({ type: "apiKey", name: "X-API-Key", in: "header" }, "api-key")
+      .addServer("/api/v1", "Versioned REST")
+      .build();
+    const document = SwaggerModule.createDocument(app, swaggerConfig);
+    SwaggerModule.setup("api/docs", app, document);
+  }
+
   app.enableShutdownHooks();
   const logger = app.get(PinoLogger);
 

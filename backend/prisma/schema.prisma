@@ -19,6 +19,8 @@ model Tenant {
   logo      String?
   plan      PlanType @default(STARTER)
   status    Status   @default(ACTIVE)
+  /// When true, password login is rejected; users must authenticate via SSO.
+  ssoOnly   Boolean  @default(false)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -47,6 +49,10 @@ model Tenant {
   eSignRequests     ESignRequest[]
   customerConsents  CustomerConsent[]
   dataSubjectRequests DataSubjectRequest[]
+  idpConfigs        TenantIdpConfig[]
+  apiKeys           ApiKey[]
+  webhookEndpoints  WebhookEndpoint[]
+  impersonationSessions ImpersonationSession[]
 }
 
 /// Per-tenant limit overrides (null fields fall back to plan defaults). Basis for Phase 5 billing.
@@ -2317,4 +2323,117 @@ enum SupportCategory {
   BUG
   PERFORMANCE
   OTHER
+}
+
+/// Per-tenant identity provider (OIDC or SAML 2.0) — Phase 9.1
+model TenantIdpConfig {
+  id            String   @id @default(cuid())
+  tenantId      String
+  provider      String   // google | entra | okta | custom
+  protocol      String   // oidc | saml
+  issuer        String
+  clientId      String?
+  clientSecret  String?  // encrypted at rest in prod; stored hashed/secret manager in real deploy
+  metadataUrl   String?
+  ssoUrl        String?
+  certificate   String?  // SAML IdP X.509 PEM
+  roleMapping   Json?    // IdP group/role ? PropOS role name
+  enabled       Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, provider])
+  @@index([tenantId])
+}
+
+/// Global / per-tenant feature flags (Phase 9.2) — overrides plan defaults when set.
+model FeatureFlag {
+  id          String   @id @default(cuid())
+  key         String
+  description String?
+  enabled     Boolean  @default(false)
+  /// Null tenantId = global flag
+  tenantId    String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([key, tenantId])
+  @@index([tenantId])
+  @@index([key])
+}
+
+/// Support impersonation sessions (Phase 9.2)
+model ImpersonationSession {
+  id              String   @id @default(cuid())
+  tenantId        String
+  actorUserId     String   // platform support user
+  targetUserId    String   // tenant admin being viewed as
+  expiresAt       DateTime
+  endedAt         DateTime?
+  createdAt       DateTime @default(now())
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, expiresAt])
+  @@index([actorUserId])
+}
+
+/// Tenant-scoped API keys for public platform (Phase 9.3)
+model ApiKey {
+  id             String    @id @default(cuid())
+  tenantId       String
+  name           String
+  /// SHA-256 of the secret; raw secret shown once at creation
+  keyHash        String
+  prefix         String
+  scopes         String[]
+  lastUsedAt     DateTime?
+  expiresAt      DateTime?
+  revokedAt      DateTime?
+  createdById    String?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@index([prefix])
+  @@unique([keyHash])
+}
+
+model WebhookEndpoint {
+  id        String   @id @default(cuid())
+  tenantId  String
+  url       String
+  secret    String
+  events    String[]
+  enabled   Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tenant     Tenant            @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  deliveries WebhookDelivery[]
+
+  @@index([tenantId])
+}
+
+model WebhookDelivery {
+  id           String   @id @default(cuid())
+  endpointId   String
+  event        String
+  payloadHash  String
+  statusCode   Int?
+  success      Boolean  @default(false)
+  attempts     Int      @default(0)
+  lastError    String?
+  nextRetryAt  DateTime?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  endpoint WebhookEndpoint @relation(fields: [endpointId], references: [id], onDelete: Cascade)
+
+  @@index([endpointId, createdAt])
+  @@index([nextRetryAt])
 }

@@ -46,6 +46,10 @@ export const DIRECT_TENANT_MODELS = [
   "GatewayPayment",
   "GatewayRefund",
   "SaasInvoice",
+  "TenantIdpConfig",
+  "ApiKey",
+  "WebhookEndpoint",
+  "ImpersonationSession",
 ] as const;
 
 export type DirectTenantModel = (typeof DIRECT_TENANT_MODELS)[number];
@@ -61,6 +65,7 @@ export const GLOBAL_MODELS = [
   "Permission",
   "ConsentPurpose",
   "GatewayWebhookEvent",
+  "FeatureFlag",
 ] as const;
 
 export type GlobalModel = (typeof GLOBAL_MODELS)[number];
@@ -115,6 +120,7 @@ export const RELATION_SCOPED_MODELS = [
   "BOQ", // → Project → Company
   "Notification", // → User.tenantId
   "Activity", // → User.tenantId
+  "WebhookDelivery", // → WebhookEndpoint.tenantId
 ] as const;
 
 export function isDirectTenantModel(model: string | undefined): boolean {

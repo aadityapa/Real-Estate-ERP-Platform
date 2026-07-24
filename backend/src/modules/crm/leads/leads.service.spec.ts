@@ -64,6 +64,7 @@ describe("LeadsService — tenant scoping", () => {
       prisma as never,
       eventsService as never,
       cache as never,
+      { dispatch: jest.fn().mockResolvedValue(undefined) } as never,
     );
   });
 

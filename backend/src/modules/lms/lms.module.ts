@@ -14,9 +14,10 @@ import { LmsLeadsService } from "./leads/lms-leads.service";
 import { LmsYpsrController } from "./site-visits/lms-ypsr.controller";
 import { LmsYpsrService } from "./site-visits/lms-ypsr.service";
 import { EventsModule } from "../events/events.module";
+import { PlatformModule } from "../platform/platform.module";
 
 @Module({
-  imports: [EventsModule],
+  imports: [EventsModule, PlatformModule],
   controllers: [
     LmsDashboardController,
     LmsGoalsController,

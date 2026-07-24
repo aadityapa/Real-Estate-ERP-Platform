@@ -50,6 +50,9 @@ const cases: Case[] = [
           getOrSet: jest.fn(async (_k: string, p: () => Promise<unknown>) => p()),
           invalidate: jest.fn(),
         }) as never,
+        (extras?.["webhooks"] ?? {
+          dispatch: jest.fn(),
+        }) as never,
       ),
   },
   {

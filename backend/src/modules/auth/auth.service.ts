@@ -139,6 +139,16 @@ export class AuthService {
       throw new UnauthorizedException("Invalid credentials");
     }
 
+    const tenant = await this.prisma.tenant.findUnique({
+      where: { id: user.tenantId },
+      select: { ssoOnly: true },
+    });
+    if (tenant?.ssoOnly) {
+      throw new UnauthorizedException(
+        "Password login disabled — use SSO for this tenant",
+      );
+    }
+
     const valid = await bcrypt.compare(dto.password, user.passwordHash);
     if (!valid) {
       await this.loginLockout.recordFailure(attempt);
@@ -155,6 +165,26 @@ export class AuthService {
     const payload = await this.buildJwtPayload(user.id);
     const tokens = await this.generateTokens(payload, user.id, meta);
 
+    return {
+      ...tokens,
+      user: this.mapUserResponse(payload, user),
+    };
+  }
+
+  /** Issue JWT session for an already-authenticated user (SSO / SCIM JIT). */
+  async issueTokensForUser(
+    userId: string,
+    meta: AuthRequestMeta = {},
+  ): Promise<AuthTokens & { user: AuthUserResponse }> {
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: { lastLoginAt: new Date() },
+    });
+    const payload = await this.buildJwtPayload(userId);
+    const tokens = await this.generateTokens(payload, userId, meta);
+    const user = await this.prisma.user.findUniqueOrThrow({
+      where: { id: userId },
+    });
     return {
       ...tokens,
       user: this.mapUserResponse(payload, user),

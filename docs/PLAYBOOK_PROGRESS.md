@@ -33,6 +33,9 @@
 | **8.1 Container & image hardening** | Done | Multi-stage non-root Dockerfiles (API + Next standalone); `.dockerignore`; Trivy CI gate + allowlist; `docker-compose.prod.yml` + Caddy TLS; docs `docs/CONTAINER_HARDENING.md`. |
 | **8.2 IaC & orchestration** | Done | Terraform AWS ECS Fargate (VPC, RDS Multi-AZ/PITR, ElastiCache, S3+CloudFront, Secrets Manager, ALB WAF, migrate task, autoscaling); env backends; docs `docs/DEPLOYMENT.md`. `terraform` CLI not on agent — validate locally. |
 | **8.3 CD pipeline & releases** | Done | `.github/workflows/cd.yml`: build/scan/push GHCR, migration gate, staging deploy+smoke/e2e, production environment approval, semver+changelog releases; docs `docs/CD_PIPELINE.md`. |
+| **9.1 SSO / SAML / SCIM** | Done | `TenantIdpConfig` + `ssoOnly`; OIDC callback + SAML ACS (mock JSON + soft XML); JIT provisioning; SCIM 2.0 Users CRUD; password login blocked when SSO-only. Migration `20260724120000_enterprise_sso_admin_api`. |
+| **9.2 Admin console, flags & impersonation** | Done | `/platform/*` (tenants, audit view, feature flags, impersonation start/end with AuditLog + banner/TTL); `lms_clash_detection` flag gates clash list. |
+| **9.3 Public API & webhooks** | Done | Tenant API keys (hashed, scoped, rotatable); webhooks for lead.created (+ signing/retry); Swagger UI at `/api/docs`; OpenAPI via `@nestjs/swagger`. |
 | Next.js bump | Done | 15.5.21 |
 | P0 Customer tenancy / LMS / RBAC / DTOs | Done | See prior commit |
 
@@ -57,4 +60,4 @@ Branch protection: `docs/CI_BRANCH_PROTECTION.md`
 
 ## Remaining (playbook order)
 
-- **8.2–11** IaC/CD, SSO, mobile, go-live  
+- **10–11** Mobile release, go-live checklist, security review  
