@@ -1,12 +1,33 @@
 import { Injectable, NotFoundException } from "@nestjs/common";
 import { Prisma } from "@prisma/client";
+import { CacheService } from "../../../common/redis/cache.service";
 import { PrismaService } from "../../../database/prisma.service";
 
 @Injectable()
 export class LmsDashboardService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly cache: CacheService,
+  ) {}
 
   async getCounters(tenantId: string, projectId?: string, dateFrom?: string, dateTo?: string) {
+    const key = await this.cache.buildKey(tenantId, "lms", [
+      "counters",
+      projectId ?? "all",
+      dateFrom ?? "",
+      dateTo ?? "",
+    ]);
+    return this.cache.getOrSet(key, () =>
+      this.computeCounters(tenantId, projectId, dateFrom, dateTo),
+    );
+  }
+
+  private async computeCounters(
+    tenantId: string,
+    projectId?: string,
+    dateFrom?: string,
+    dateTo?: string,
+  ) {
     const dateFilter = this.dateRange(dateFrom, dateTo);
     const projectFilter = projectId ? { projectId } : {};
 
@@ -74,6 +95,23 @@ export class LmsDashboardService {
     const now = new Date();
     const m = month ?? now.getMonth() + 1;
     const y = year ?? now.getFullYear();
+    const key = await this.cache.buildKey(tenantId, "lms", [
+      "leaderboard",
+      String(m),
+      String(y),
+      projectId ?? "all",
+    ]);
+    return this.cache.getOrSet(key, () =>
+      this.computeLeaderboard(tenantId, m, y, projectId),
+    );
+  }
+
+  private async computeLeaderboard(
+    tenantId: string,
+    m: number,
+    y: number,
+    projectId?: string,
+  ) {
     const start = new Date(y, m - 1, 1);
     const end = new Date(y, m, 0, 23, 59, 59);
 
@@ -159,48 +197,60 @@ export class LmsDashboardService {
 
   /** Single groupBy instead of one count per funnel stage. */
   async getFunnel(tenantId: string, projectId?: string) {
-    const statuses = [
-      "NEW",
-      "CONTACTED",
-      "INTERESTED",
-      "SITE_VISIT",
-      "NEGOTIATION",
-      "BOOKING",
-      "REGISTRATION",
-    ] as const;
+    const key = await this.cache.buildKey(tenantId, "lms", [
+      "funnel",
+      projectId ?? "all",
+    ]);
+    return this.cache.getOrSet(key, async () => {
+      const statuses = [
+        "NEW",
+        "CONTACTED",
+        "INTERESTED",
+        "SITE_VISIT",
+        "NEGOTIATION",
+        "BOOKING",
+        "REGISTRATION",
+      ] as const;
 
-    const groups = await this.prisma.lead.groupBy({
-      by: ["status"],
-      where: {
-        tenantId,
-        isArchived: false,
-        status: { in: [...statuses] },
-        ...(projectId && { projectId }),
-      },
-      _count: { id: true },
+      const groups = await this.prisma.lead.groupBy({
+        by: ["status"],
+        where: {
+          tenantId,
+          isArchived: false,
+          status: { in: [...statuses] },
+          ...(projectId && { projectId }),
+        },
+        _count: { id: true },
+      });
+
+      const countByStatus = new Map(
+        groups.map((g) => [g.status, g._count.id] as const),
+      );
+
+      return statuses.map((stage) => ({
+        stage,
+        count: countByStatus.get(stage) ?? 0,
+      }));
     });
-
-    const countByStatus = new Map(
-      groups.map((g) => [g.status, g._count.id] as const),
-    );
-
-    return statuses.map((stage) => ({
-      stage,
-      count: countByStatus.get(stage) ?? 0,
-    }));
   }
 
   async getSourceBreakdown(tenantId: string, projectId?: string) {
-    const groups = await this.prisma.lead.groupBy({
-      by: ["source"],
-      where: { tenantId, isArchived: false, ...(projectId && { projectId }) },
-      _count: { id: true },
-    });
+    const key = await this.cache.buildKey(tenantId, "lms", [
+      "source",
+      projectId ?? "all",
+    ]);
+    return this.cache.getOrSet(key, async () => {
+      const groups = await this.prisma.lead.groupBy({
+        by: ["source"],
+        where: { tenantId, isArchived: false, ...(projectId && { projectId }) },
+        _count: { id: true },
+      });
 
-    return groups.map((g) => ({
-      source: g.source,
-      count: g._count.id,
-    }));
+      return groups.map((g) => ({
+        source: g.source,
+        count: g._count.id,
+      }));
+    });
   }
 
   async getClashLeads(tenantId: string, status?: string) {

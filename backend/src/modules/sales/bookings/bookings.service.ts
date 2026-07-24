@@ -9,6 +9,7 @@ import { getPaginationParams } from "@propos/shared-utils";
 import { PrismaService } from "../../../database/prisma.service";
 import { paginate } from "../../../common/utils/paginate";
 import { PdfService } from "../../../common/services/pdf.service";
+import { CacheService } from "../../../common/redis/cache.service";
 import { EventsService } from "../../events/events.service";
 import {
   CreateBookingDto,
@@ -36,6 +37,7 @@ export class BookingsService {
     private readonly prisma: PrismaService,
     private readonly pdfService: PdfService,
     private readonly eventsService: EventsService,
+    private readonly cache: CacheService,
   ) {}
 
   async findAll(tenantId: string, filter: FilterBookingDto) {
@@ -129,6 +131,8 @@ export class BookingsService {
 
       return reservedUnit;
     });
+
+    await this.cache.invalidate(tenantId, "inventory", "lms", "crm");
 
     return {
       message: "Unit reserved successfully",
@@ -243,6 +247,7 @@ export class BookingsService {
       bookingNumber: booking.bookingNumber,
     });
 
+    await this.cache.invalidate(tenantId, "inventory", "lms", "crm");
     return booking;
   }
 
@@ -336,8 +341,8 @@ export class BookingsService {
   async cancel(tenantId: string, id: string, cancelReason?: string) {
     const booking = await this.findOne(tenantId, id);
 
-    return this.prisma.$transaction(async (tx) => {
-      const cancelled = await tx.booking.update({
+    const cancelled = await this.prisma.$transaction(async (tx) => {
+      const row = await tx.booking.update({
         where: { id },
         data: {
           status: "CANCELLED",
@@ -351,8 +356,11 @@ export class BookingsService {
         data: { status: "AVAILABLE" },
       });
 
-      return cancelled;
+      return row;
     });
+
+    await this.cache.invalidate(tenantId, "inventory", "lms", "crm");
+    return cancelled;
   }
 
   private async createInstallments(

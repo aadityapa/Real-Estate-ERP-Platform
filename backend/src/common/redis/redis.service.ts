@@ -93,4 +93,38 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
     }
     await this.client.del(...keys);
   }
+
+  /** SET key value NX PX ttl — returns true when the lock was acquired. */
+  async setNxPx(
+    key: string,
+    value: string,
+    ttlMs: number,
+  ): Promise<boolean> {
+    if (!this.client || this.client.status !== "ready") return true;
+    const result = await this.client.set(key, value, "PX", ttlMs, "NX");
+    return result === "OK";
+  }
+
+  /**
+   * Release a lock only if we still own it (compare-and-del via Lua).
+   */
+  async releaseLock(key: string, token: string): Promise<void> {
+    if (!this.client || this.client.status !== "ready") return;
+    const script = `
+      if redis.call("get", KEYS[1]) == ARGV[1] then
+        return redis.call("del", KEYS[1])
+      end
+      return 0
+    `;
+    await this.client.eval(script, 1, key, token);
+  }
+
+  /** Underlying client for Socket.IO Redis adapter (pub/sub duplicates). */
+  getClient(): Redis | null {
+    return this.client?.status === "ready" ? this.client : null;
+  }
+
+  getRedisUrl(): string | undefined {
+    return this.configService.get<string>("REDIS_URL") ?? undefined;
+  }
 }

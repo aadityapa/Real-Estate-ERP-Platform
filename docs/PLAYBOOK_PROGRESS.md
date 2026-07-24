@@ -29,6 +29,7 @@
 | **6.2 RERA, agreements & e-sign** | Done | `ReraProjectProfile` + `ReraPaymentStage` (bps caps; rule engine in `rera-rules.ts`); template-driven allotment/ATS PDF → document vault versioning; pluggable `ESignProvider` (mock Digio default; webhook → audit). Docs: `docs/RERA_AGREEMENTS_ESIGN.md`. Migration: `20260723220000_rera_agreements_esign` (`prisma migrate deploy` when DB up). |
 | **6.3 DPDP Act 2023 / data residency** | Done | `ConsentPurpose` + `CustomerConsent` + `DataSubjectRequest`; customer export/correct/erase under `/privacy/*`; residency guards (`DATA_RESIDENCY_REGION`/`AWS_REGION` → `ap-south-1`); docs `docs/DPDP_COMPLIANCE.md`. Migration: `20260723230000_dpdp_consent_residency` (`prisma migrate deploy` when DB up). |
 | **7.1 Database performance** | Done | Composite Lead/FollowUp/SiteVisit/Booking/Unit indexes; CRM + LMS cursor pagination; LMS leaderboard/funnel N+1 → groupBy; Prisma `connection_limit`/`pool_timeout` + PgBouncer flag; non-prod slow-query log; docs `docs/DB_PERF.md`. Migration: `20260724100000_db_perf_indexes` (`prisma migrate deploy` when DB up). |
+| **7.2 Caching, realtime & load testing** | Done | Redis `CacheService` (stampede SET NX + namespace version invalidation) on CRM dashboard, LMS KPIs, inventory availability; Socket.IO `RedisIoAdapter`; atomic LMS claim (`SET NX` + `updateMany`); tenant-scoped data-feed join auth; k6 scripts `login`/`crm-list`/`booking-create`/`realtime-feed`; docs `docs/LOAD_TEST.md`. |
 | Next.js bump | Done | 15.5.21 |
 | P0 Customer tenancy / LMS / RBAC / DTOs | Done | See prior commit |
 
@@ -39,9 +40,10 @@ pnpm --filter @propos/frontend test
 pnpm --filter @propos/backend test:cov
 pnpm --filter @propos/backend exec jest --testPathPattern=auth
 pnpm --filter @propos/backend exec jest --testPathPattern=permissions
-pnpm --filter @propos/backend exec jest --testPathPattern="exception|upload-safety|redact|cors|request-id|pii-crypto|audit|production-secrets|tenant|limits|plan-defaults|pino|metrics|tracing|sentry|retention|storage-keys|tenant-delete|storage-purger|gateway|razorpay|money|billing|tax-compute|gst-invoice|tds.service|mock-irp|rera-rules|mock-esign|agreements.service|data-residency|privacy.service|prisma-pool|lms-dashboard|leads.service"
+pnpm --filter @propos/backend exec jest --testPathPattern="exception|upload-safety|redact|cors|request-id|pii-crypto|audit|production-secrets|tenant|limits|plan-defaults|pino|metrics|tracing|sentry|retention|storage-keys|tenant-delete|storage-purger|gateway|razorpay|money|billing|tax-compute|gst-invoice|tds.service|mock-irp|rera-rules|mock-esign|agreements.service|data-residency|privacy.service|prisma-pool|lms-dashboard|leads.service|cache.service|lms-data-feed"
 pnpm test:e2e   # requires docker-compose.full.yml on :3000/:3001
 node scripts/check-prisma-migration.cjs
+# Load tests (k6 + full compose): see docs/LOAD_TEST.md
 # DR (needs Postgres client or compose postgres):
 #   ./scripts/backup.sh && ./scripts/verify-restore.sh backups/propos-*.dump
 # Razorpay / SaaS billing / GST / RERA / DPDP / DB perf migrations (when Postgres up):
@@ -52,4 +54,4 @@ Branch protection: `docs/CI_BRANCH_PROTECTION.md`
 
 ## Remaining (playbook order)
 
-- **7.2–11** Caching/load, IaC/CD, SSO, mobile, go-live  
+- **8.1–11** Infra/CD, SSO, mobile, go-live  

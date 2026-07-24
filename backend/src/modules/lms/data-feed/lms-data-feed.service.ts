@@ -6,15 +6,21 @@ import {
 } from "@nestjs/common";
 import { getPaginationParams } from "@propos/shared-utils";
 import { PrismaService } from "../../../database/prisma.service";
+import { CacheService } from "../../../common/redis/cache.service";
+import { RedisService } from "../../../common/redis/redis.service";
 import { cursorPaginate } from "../../../common/utils/cursor-paginate";
 import { paginate } from "../../../common/utils/paginate";
 import { EventsService } from "../../events/events.service";
+
+const CLAIM_LOCK_TTL_MS = 8_000;
 
 @Injectable()
 export class LmsDataFeedService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly events: EventsService,
+    private readonly redis: RedisService,
+    private readonly cache: CacheService,
   ) {}
 
   async getFeed(
@@ -147,70 +153,124 @@ export class LmsDataFeedService {
     return { unclaimed, claimed, myClaimed, agingCount };
   }
 
+  /**
+   * Atomic claim: Redis lock serializes contenders; Prisma conditional update
+   * (`assignedToId: null`) is the source of truth across API instances.
+   */
   async claimLead(tenantId: string, leadId: string, userId: string) {
-    const lead = await this.prisma.lead.findFirst({
-      where: { id: leadId, tenantId, isArchived: false },
-    });
-    if (!lead) throw new NotFoundException("Lead not found");
-    if (lead.assignedToId) throw new ConflictException("Lead already claimed");
+    const lockKey = `lead:${tenantId}:${leadId}:claim-lock`;
+    const token = `${userId}-${Date.now()}`;
+    const acquired = await this.redis.setNxPx(lockKey, token, CLAIM_LOCK_TTL_MS);
+    if (!acquired) {
+      throw new ConflictException("Lead claim in progress");
+    }
 
-    const now = new Date();
-    const history = Array.isArray(lead.claimHistory)
-      ? (lead.claimHistory as object[])
-      : [];
+    try {
+      const lead = await this.prisma.lead.findFirst({
+        where: { id: leadId, tenantId, isArchived: false },
+      });
+      if (!lead) throw new NotFoundException("Lead not found");
+      if (lead.assignedToId) {
+        throw new ConflictException("Lead already claimed");
+      }
 
-    const updated = await this.prisma.lead.update({
-      where: { id: leadId, assignedToId: null },
-      data: {
-        assignedToId: userId,
-        claimedById: userId,
-        claimedAt: now,
-        claimHistory: [...history, { userId, claimedAt: now.toISOString() }],
-      },
-      include: {
-        project: { select: { id: true, name: true } },
-        assignedTo: { select: { id: true, firstName: true, lastName: true } },
-      },
-    });
+      const now = new Date();
+      const history = Array.isArray(lead.claimHistory)
+        ? (lead.claimHistory as object[])
+        : [];
 
-    this.events.emitLeadClaimed(tenantId, {
-      leadId,
-      claimedBy: userId,
-      claimedAt: now.toISOString(),
-    });
+      const result = await this.prisma.lead.updateMany({
+        where: {
+          id: leadId,
+          tenantId,
+          assignedToId: null,
+          isArchived: false,
+        },
+        data: {
+          assignedToId: userId,
+          claimedById: userId,
+          claimedAt: now,
+          claimHistory: [
+            ...history,
+            { userId, claimedAt: now.toISOString() },
+          ],
+        },
+      });
+      if (result.count === 0) {
+        throw new ConflictException("Lead already claimed");
+      }
 
-    return updated;
+      const updated = await this.prisma.lead.findFirst({
+        where: { id: leadId, tenantId },
+        include: {
+          project: { select: { id: true, name: true } },
+          assignedTo: {
+            select: { id: true, firstName: true, lastName: true },
+          },
+        },
+      });
+      if (!updated) throw new NotFoundException("Lead not found");
+
+      await this.cache.invalidate(tenantId, "lms", "crm");
+
+      this.events.emitLeadClaimed(tenantId, {
+        leadId,
+        claimedBy: userId,
+        claimedAt: now.toISOString(),
+      });
+
+      return updated;
+    } finally {
+      await this.redis.releaseLock(lockKey, token);
+    }
   }
 
-  async releaseLead(tenantId: string, leadId: string, userId: string, roles: string[]) {
-    const lead = await this.prisma.lead.findFirst({
-      where: { id: leadId, tenantId },
-    });
-    if (!lead) throw new NotFoundException("Lead not found");
-
-    const isManager = roles.some((r) =>
-      ["Super Admin", "Admin", "Sales Manager"].includes(r),
-    );
-    const withinWindow =
-      lead.claimedAt && Date.now() - lead.claimedAt.getTime() < 5 * 60000;
-
-    if (lead.claimedById !== userId && !isManager) {
-      throw new ForbiddenException("Cannot release this lead");
-    }
-    if (!isManager && !withinWindow) {
-      throw new ForbiddenException("Release window expired (5 minutes)");
+  async releaseLead(
+    tenantId: string,
+    leadId: string,
+    userId: string,
+    roles: string[],
+  ) {
+    const lockKey = `lead:${tenantId}:${leadId}:claim-lock`;
+    const token = `${userId}-release-${Date.now()}`;
+    const acquired = await this.redis.setNxPx(lockKey, token, CLAIM_LOCK_TTL_MS);
+    if (!acquired) {
+      throw new ConflictException("Lead update in progress");
     }
 
-    const updated = await this.prisma.lead.update({
-      where: { id: leadId },
-      data: {
-        assignedToId: null,
-        claimedById: null,
-        claimReleasedAt: new Date(),
-      },
-    });
+    try {
+      const lead = await this.prisma.lead.findFirst({
+        where: { id: leadId, tenantId },
+      });
+      if (!lead) throw new NotFoundException("Lead not found");
 
-    this.events.emitLeadReleased(tenantId, { leadId });
-    return updated;
+      const isManager = roles.some((r) =>
+        ["Super Admin", "Admin", "Sales Manager"].includes(r),
+      );
+      const withinWindow =
+        lead.claimedAt && Date.now() - lead.claimedAt.getTime() < 5 * 60000;
+
+      if (lead.claimedById !== userId && !isManager) {
+        throw new ForbiddenException("Cannot release this lead");
+      }
+      if (!isManager && !withinWindow) {
+        throw new ForbiddenException("Release window expired (5 minutes)");
+      }
+
+      const updated = await this.prisma.lead.update({
+        where: { id: leadId },
+        data: {
+          assignedToId: null,
+          claimedById: null,
+          claimReleasedAt: new Date(),
+        },
+      });
+
+      await this.cache.invalidate(tenantId, "lms", "crm");
+      this.events.emitLeadReleased(tenantId, { leadId });
+      return updated;
+    } finally {
+      await this.redis.releaseLock(lockKey, token);
+    }
   }
 }

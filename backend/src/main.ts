@@ -15,6 +15,7 @@ import { MetricsService } from "./common/observability/metrics/metrics.service";
 import { initSentry } from "./common/observability/sentry";
 import { shutdownTracing } from "./common/observability/tracing";
 import { verifyStoragePath } from "./common/utils/crypto";
+import { RedisIoAdapter } from "./common/redis/redis-io.adapter";
 import { assertProductionSecretsConfigured } from "./modules/auth/production-secrets";
 import {
   assertProductionResidencyConfigured,
@@ -133,7 +134,13 @@ async function bootstrap(): Promise<void> {
 
   app.enableShutdownHooks();
   const logger = app.get(PinoLogger);
+
+  const redisIo = new RedisIoAdapter(app, process.env["REDIS_URL"]);
+  await redisIo.connectToRedis();
+  app.useWebSocketAdapter(redisIo);
+
   process.once("SIGTERM", () => {
+    void redisIo.close();
     void shutdownTracing();
   });
 

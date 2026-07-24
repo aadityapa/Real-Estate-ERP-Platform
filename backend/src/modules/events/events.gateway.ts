@@ -11,6 +11,15 @@ import { Server, Socket } from "socket.io";
 import type { JwtPayload } from "@propos/shared-types";
 import { getCorsOrigins } from "../../common/config/cors";
 
+/** Roles that may join the LMS realtime data-feed room. */
+const DATA_FEED_ROLES = new Set([
+  "Super Admin",
+  "Admin",
+  "Sales Manager",
+  "Sales Executive",
+  "CRM Manager",
+]);
+
 @WebSocketGateway({
   cors: {
     origin: getCorsOrigins(),
@@ -38,7 +47,13 @@ export class EventsGateway implements OnGatewayConnection, OnGatewayDisconnect {
       }
 
       const payload = this.jwtService.verify<JwtPayload>(token);
+      if (!payload.tenantId || !payload.userId) {
+        client.disconnect();
+        return;
+      }
+
       client.data.user = payload;
+      // Tenant-scoped rooms only — never join another tenant's room.
       await client.join(`tenant:${payload.tenantId}`);
       await client.join(`user:${payload.userId}`);
       this.logger.log(`Client connected: ${payload.userId}`);
@@ -55,15 +70,31 @@ export class EventsGateway implements OnGatewayConnection, OnGatewayDisconnect {
   }
 
   @SubscribeMessage("ping")
-  handlePing(client: Socket): { event: string; data: string } {
+  handlePing(_client: Socket): { event: string; data: string } {
     return { event: "pong", data: "ok" };
   }
 
   @SubscribeMessage("join:data-feed")
-  async handleJoinDataFeed(client: Socket): Promise<void> {
+  async handleJoinDataFeed(
+    client: Socket,
+  ): Promise<{ ok: boolean; error?: string }> {
     const user = client.data.user as JwtPayload | undefined;
-    if (user) {
-      await client.join(`tenant:${user.tenantId}:data-feed`);
+    if (!user?.tenantId) {
+      return { ok: false, error: "UNAUTHORIZED" };
     }
+
+    const roles = user.roles ?? [];
+    const allowed =
+      roles.some((r) => DATA_FEED_ROLES.has(r)) ||
+      (user.permissions ?? []).some(
+        (p) => p === "crm:read:leads" || p === "crm:manage:leads",
+      );
+
+    if (!allowed) {
+      return { ok: false, error: "FORBIDDEN" };
+    }
+
+    await client.join(`tenant:${user.tenantId}:data-feed`);
+    return { ok: true };
   }
 }

@@ -37,7 +37,14 @@ describe("LmsDashboardService — query shape (Phase 7.1)", () => {
         update: jest.fn(),
       },
     };
-    service = new LmsDashboardService(prisma as never);
+    service = new LmsDashboardService(
+      prisma as never,
+      {
+        buildKey: jest.fn(async (_t, ns, parts) => `${ns}:${parts.join(":")}`),
+        getOrSet: jest.fn(async (_key, producer) => producer()),
+        invalidate: jest.fn(),
+      } as never,
+    );
   });
 
   it("getLeaderboard uses fixed groupBy queries (not per-user N+1)", async () => {

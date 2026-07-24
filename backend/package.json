@@ -46,6 +46,7 @@
     "@propos/shared-types": "workspace:*",
     "@propos/shared-utils": "workspace:*",
     "@sentry/node": "^10.67.0",
+    "@socket.io/redis-adapter": "^8.2.1",
     "bcrypt": "^5.1.1",
     "bullmq": "^5.53.0",
     "class-transformer": "^0.5.1",

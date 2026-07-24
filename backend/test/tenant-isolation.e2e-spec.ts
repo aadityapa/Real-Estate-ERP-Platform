@@ -39,10 +39,18 @@ const cases: Case[] = [
     module: "crm/leads",
     model: "lead",
     createService: (prisma, extras) =>
-      new LeadsService(prisma as never, (extras?.["events"] ?? {
-        emitLeadCreated: jest.fn(),
-        emitNewLeadToFeed: jest.fn(),
-      }) as never),
+      new LeadsService(
+        prisma as never,
+        (extras?.["events"] ?? {
+          emitLeadCreated: jest.fn(),
+          emitNewLeadToFeed: jest.fn(),
+        }) as never,
+        (extras?.["cache"] ?? {
+          buildKey: jest.fn(async () => "k"),
+          getOrSet: jest.fn(async (_k: string, p: () => Promise<unknown>) => p()),
+          invalidate: jest.fn(),
+        }) as never,
+      ),
   },
   {
     module: "vendors",

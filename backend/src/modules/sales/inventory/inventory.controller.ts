@@ -24,6 +24,15 @@ export class InventoryController {
     return this.inventoryService.findAll(tenantId, filter);
   }
 
+  @Get("availability")
+  @RequirePermissions(Permissions.SALES_INVENTORY_READ)
+  availability(
+    @TenantId() tenantId: string,
+    @Query("projectId") projectId?: string,
+  ) {
+    return this.inventoryService.getAvailability(tenantId, projectId);
+  }
+
   @Get(":id")
   @RequirePermissions(Permissions.SALES_INVENTORY_READ)
   findOne(@TenantId() tenantId: string, @Param("id") id: string) {

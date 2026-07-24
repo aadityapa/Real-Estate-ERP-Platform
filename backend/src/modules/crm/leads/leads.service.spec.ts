@@ -51,7 +51,20 @@ describe("LeadsService — tenant scoping", () => {
       emitLeadCreated: jest.fn(),
       emitNewLeadToFeed: jest.fn(),
     };
-    service = new LeadsService(prisma as never, eventsService as never);
+    const cache = {
+      buildKey: jest.fn(async (_t: string, ns: string, parts: string[]) =>
+        `${ns}:${parts.join(":")}`,
+      ),
+      getOrSet: jest.fn(async (_key: string, producer: () => Promise<unknown>) =>
+        producer(),
+      ),
+      invalidate: jest.fn().mockResolvedValue(undefined),
+    };
+    service = new LeadsService(
+      prisma as never,
+      eventsService as never,
+      cache as never,
+    );
   });
 
   it("findAll always filters by tenantId", async () => {

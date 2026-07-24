@@ -17,6 +17,7 @@ import {
   type PaginatedResult,
 } from "../../../common/utils/paginate";
 import { isCrmLeadManager } from "../../../common/constants/permissions";
+import { CacheService } from "../../../common/redis/cache.service";
 import { EventsService } from "../../events/events.service";
 import {
   AssignLeadDto,
@@ -51,6 +52,7 @@ export class LeadsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly eventsService: EventsService,
+    private readonly cache: CacheService,
   ) {}
 
   private buildListWhere(
@@ -185,6 +187,8 @@ export class LeadsService {
         source: lead.source,
       });
 
+      await this.cache.invalidate(tenantId, "crm", "lms");
+
       return lead;
     } catch (error) {
       this.logger.error("Failed to create lead", { tenantId, userId, error });
@@ -224,6 +228,7 @@ export class LeadsService {
       });
     }
 
+    await this.cache.invalidate(tenantId, "crm", "lms");
     return lead;
   }
 
@@ -264,23 +269,31 @@ export class LeadsService {
       },
     });
 
+    await this.cache.invalidate(tenantId, "crm", "lms");
     return lead;
   }
 
   async archive(tenantId: string, id: string) {
     await this.findOne(tenantId, id);
-    return this.prisma.lead.update({
+    const lead = await this.prisma.lead.update({
       where: { id },
       data: { isArchived: true },
       include: leadInclude,
     });
+    await this.cache.invalidate(tenantId, "crm", "lms");
+    return lead;
   }
 
   /**
    * CRM dashboard — fixed 5 parallel aggregations (no per-row loops).
-   * Relies on Lead (tenantId,isArchived,*) and FollowUp/SiteVisit (leadId,scheduledAt) indexes.
+   * Cached with short TTL + stampede lock; invalidated on lead writes.
    */
   async getDashboardStats(tenantId: string) {
+    const key = await this.cache.buildKey(tenantId, "crm", ["dashboard"]);
+    return this.cache.getOrSet(key, () => this.computeDashboardStats(tenantId));
+  }
+
+  private async computeDashboardStats(tenantId: string) {
     const dayStart = new Date();
     dayStart.setHours(0, 0, 0, 0);
     const dayEnd = new Date();
